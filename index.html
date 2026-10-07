@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#ece3cf">
-<title>Ryū – mustelohikäärme</title>
-<meta name="description" content="Lennä koista lohikäärmeeksi: paina niin nouset, päästä niin liidät. Kerää helmet, väistä vuoret.">
+<title>Ryū – the ink dragon</title>
+<meta name="description" content="Fly from koi to dragon: hold to rise, let go to glide. Collect pearls, dodge the mountains.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
   @font-face {
@@ -167,13 +167,13 @@
 </head>
 <body data-state="title">
 
-<canvas id="c" aria-label="Ryū-peli"></canvas>
+<canvas id="c" aria-label="Ryū game"></canvas>
 
 <div class="hud">
-  <button id="mute" type="button" aria-label="Ääni päälle tai pois">ääni</button>
+  <button id="mute" type="button" aria-label="Sound on or off">sound</button>
   <div id="score" aria-live="off">0</div>
   <div id="mult"></div>
-  <div id="best">paras<b id="bestVal">0</b></div>
+  <div id="best">best<b id="bestVal">0</b></div>
   <div id="banner"><b id="bannerMain"></b><span id="bannerSub"></span></div>
   <div id="evo"><span id="evoName">Koi</span><i><b id="evoBar"></b></i></div>
 </div>
@@ -181,16 +181,16 @@
 <div class="screen on" id="titleScreen">
   <div class="kanji" aria-hidden="true">竜</div>
   <div class="name">RYŪ<i>.</i></div>
-  <div class="hint">Paina, niin nouset. Päästä, niin liidät.<br>Kerää helmet ja kasva koista lohikäärmeeksi.</div>
-  <div class="go">Aloita napauttamalla</div>
+  <div class="hint">Hold to rise. Let go to glide.<br>Collect pearls and grow from koi to dragon.</div>
+  <div class="go">Tap to start</div>
 </div>
 
 <div class="screen" id="overScreen">
-  <div class="over-label">TULOS</div>
+  <div class="over-label">SCORE</div>
   <div class="over-score" id="overScore">0</div>
   <div class="over-stage" id="overStage"></div>
-  <div class="over-best" id="overBest">paras 0</div>
-  <div class="go">Vielä kerran? Napauta.</div>
+  <div class="over-best" id="overBest">best 0</div>
+  <div class="go">Once more? Tap.</div>
 </div>
 
 <script>
@@ -211,14 +211,14 @@
   // kymmenen vaihetta, uusi aina sadan pisteen välein
   var STAGES = [
     { n: 'Koi',                len: 62,  r: 1.3,  head: 0.92, face: 'fish', tail: 1, dorsal: 1, pect: 1, dot: 1 },
-    { n: 'Perhoskoi',          len: 84,  r: 1.42, head: 1.0,  face: 'fish', tail: 2, veil: 1, dorsal: 1.4, pect: 1.9, dot: 1, patch: 1, barbel: 1 },
-    { n: 'Vesikäärme',         len: 150, r: 0.8,  head: 0.9,  face: 'eel', bands: 1, whisk: 0.45 },
-    { n: 'Sarvikäärme',        len: 162, r: 1.0,  head: 1.02, face: 'dragon', jaw: 1, horn: 0.75, sail: 1, whisk: 0.7, tuft: 0.7 },
-    { n: 'Nuori lohikäärme',   len: 180, r: 1.08, head: 1.1,  face: 'dragon', jaw: 1, horn: 0.95, spine: 0.85, spineStep: 6, legs: 0.8, mane: 0.9, whisk: 1, belly: 0.26, tuft: 0.9, bulk: 0.12 },
-    { n: 'Lohikäärme',         len: 196, r: 1.16, head: 1.2,  face: 'dragon', jaw: 1, horn: 1.25, spine: 1.05, spineStep: 5, legs: 1, mane: 1.15, maneCol: 'red', beard: 0.8, whisk: 1.15, belly: 0.75, bellyCol: 'red', scales: 1, fang: 1, tuft: 1.1, bulk: 0.2 },
-    { n: 'Myrskylohikäärme',   len: 210, r: 1.2, head: 1.26, face: 'dragon', jaw: 1, horn: 1.3, spine: 1.5, spineKind: 'bolt', spineStep: 6, legs: 1.05, mane: 1.3, beard: 0.9, whisk: 1.3, belly: 0.3, scales: 1, fang: 1, tuft: 1.2, bulk: 0.26, bolt: 1, eye: CYAN, glow: 1, accent: CYAN },
-    { n: 'Vuorten lohikäärme', len: 220, r: 1.36,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.45, hornW: 1.7, spine: 1.25, spineKind: 'plate', spineStep: 8, legs: 1.25, mane: 1.2, beard: 1.1, whisk: 1.0, belly: 0.22, fang: 1, tuft: 1.3, bulk: 0.42, cracks: 1, glow: 1, ember: 0.9 },
-    { n: 'Taivaan lohikäärme', len: 238, r: 1.24,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.5, spine: 1.0, spineStep: 5, legs: 1.15, mane: 1.6, beard: 1.2, whisk: 1.7, belly: 0.85, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.5, bulk: 0.3, wing: 1, gold: 1, glow: 1, eye: GOLD, ember: 0.6 },
+    { n: 'Butterfly koi',      len: 84,  r: 1.42, head: 1.0,  face: 'fish', tail: 2, veil: 1, dorsal: 1.4, pect: 1.9, dot: 1, patch: 1, barbel: 1 },
+    { n: 'Water serpent',      len: 150, r: 0.8,  head: 0.9,  face: 'eel', bands: 1, whisk: 0.45 },
+    { n: 'Horned serpent',     len: 162, r: 1.0,  head: 1.02, face: 'dragon', jaw: 1, horn: 0.75, sail: 1, whisk: 0.7, tuft: 0.7 },
+    { n: 'Young dragon',       len: 180, r: 1.08, head: 1.1,  face: 'dragon', jaw: 1, horn: 0.95, spine: 0.85, spineStep: 6, legs: 0.8, mane: 0.9, whisk: 1, belly: 0.26, tuft: 0.9, bulk: 0.12 },
+    { n: 'Dragon',             len: 196, r: 1.16, head: 1.2,  face: 'dragon', jaw: 1, horn: 1.25, spine: 1.05, spineStep: 5, legs: 1, mane: 1.15, maneCol: 'red', beard: 0.8, whisk: 1.15, belly: 0.75, bellyCol: 'red', scales: 1, fang: 1, tuft: 1.1, bulk: 0.2 },
+    { n: 'Storm dragon',       len: 210, r: 1.2, head: 1.26, face: 'dragon', jaw: 1, horn: 1.3, spine: 1.5, spineKind: 'bolt', spineStep: 6, legs: 1.05, mane: 1.3, beard: 0.9, whisk: 1.3, belly: 0.3, scales: 1, fang: 1, tuft: 1.2, bulk: 0.26, bolt: 1, eye: CYAN, glow: 1, accent: CYAN },
+    { n: 'Mountain dragon',    len: 220, r: 1.36,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.45, hornW: 1.7, spine: 1.25, spineKind: 'plate', spineStep: 8, legs: 1.25, mane: 1.2, beard: 1.1, whisk: 1.0, belly: 0.22, fang: 1, tuft: 1.3, bulk: 0.42, cracks: 1, glow: 1, ember: 0.9 },
+    { n: 'Sky dragon',         len: 238, r: 1.24,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.5, spine: 1.0, spineStep: 5, legs: 1.15, mane: 1.6, beard: 1.2, whisk: 1.7, belly: 0.85, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.5, bulk: 0.3, wing: 1, gold: 1, glow: 1, eye: GOLD, ember: 0.6 },
     { n: 'Ryūjin',             len: 258, r: 1.4,  head: 1.56, face: 'dragon', jaw: 1, horn: 1.7, crown: 1, spine: 1.5, spineKind: 'flame', spineStep: 4, legs: 1.35, mane: 1.9, beard: 1.5, whisk: 1.8, belly: 0.9, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.8, bulk: 0.46, gold: 1, glow: 1, pearl: 1, halo: 1, ember: 1.6, stripe: 1 }
   ];
   var STAGE_POINTS = 100, STORM_TIME = 4, STORM_NEED = 12;
@@ -551,7 +551,7 @@
       $score.classList.add('pop');
       requestAnimationFrame(function () { requestAnimationFrame(function () { $score.classList.remove('pop'); }); });
     }
-    if (stormT > 0) $mult.textContent = 'MYRSKY';
+    if (stormT > 0) $mult.textContent = 'STORM';
     else {                                           // putki kohti myrskyä, piste per helmi
       var pips = '';
       for (var k = 0; k < STORM_NEED; k++) pips += k < streak ? '<i class="f"></i>' : '<i></i>';
@@ -612,7 +612,7 @@
 
   function startStorm() {
     stormT = STORM_TIME;
-    banner('MYRSKY', 'murskaa vuoret', 1600);
+    banner('STORM', 'smash the mountains', 1600);
     rings.push({ x: D.x, y: D.y, r: 10 * U, max: 220 * U, life: 1, col: RED });
     shake = Math.max(shake, 9 * U);
     drum(0.7, 1.4);
@@ -634,7 +634,7 @@
   function graze(o) {
     var gx0 = D.x + 6 * U, gy0 = D.y;
     addScore(1);
-    floaters.push({ x: gx0, y: gy0 - 26 * U, txt: 'hipaisu +1', life: 1.2, col: GOLD, size: 17 * U, serif: true });
+    floaters.push({ x: gx0, y: gy0 - 26 * U, txt: 'graze +1', life: 1.2, col: GOLD, size: 17 * U, serif: true });
     for (var i = 0; i < 12; i++) drops.push({ x: gx0, y: gy0, vx: -rand(40, 220) * U, vy: rand(-110, 110) * U, r: rand(0.8, 2.2) * U, life: rand(0.25, 0.55), col: GOLD });
     pluck(noteFor(9), 0.2, 0.35); pluck(noteFor(11), 0.16, 0.4, 0.05);
     buzz(12);
@@ -679,7 +679,7 @@
     $('overScore').textContent = score;
     $('overStage').textContent = STAGES[D.stage].n + ' · ' + (D.stage + 1) + ' / ' + STAGES.length;
     var ob = $('overBest');
-    ob.textContent = record && score > 0 ? 'Uusi ennätys!' : 'paras ' + best;
+    ob.textContent = record && score > 0 ? 'New record!' : 'best ' + best;
     ob.classList.toggle('record', record && score > 0);
     $bestVal.textContent = best;
   }
@@ -764,7 +764,7 @@
         }
         if (grace > 0) grace -= dt;
         var wantNight = Math.floor(passed / 15) % 2 === 1;
-        if (wantNight !== (nightAmt > 0.5) && (nightAmt === 0 || nightAmt === 1)) banner(wantNight ? 'Yö' : 'Aamu', '', 1500);
+        if (wantNight !== (nightAmt > 0.5) && (nightAmt === 0 || nightAmt === 1)) banner(wantNight ? 'Night' : 'Dawn', '', 1500);
         nightAmt = clamp(nightAmt + (wantNight ? 1 : -1) * dt * 0.45, 0, 1);
         document.body.classList.toggle('night', nightAmt > 0.5);
 
@@ -1512,11 +1512,11 @@
   function toggleMute() {
     muted = !muted;
     store('ryu.muted', muted ? '1' : '0');
-    $mute.textContent = muted ? 'ääni pois' : 'ääni';
+    $mute.textContent = muted ? 'sound off' : 'sound';
     if (!muted) { initAudio(); pluck(noteFor(3), 0.25, 0.6); }
   }
   $mute.addEventListener('click', function () { toggleMute(); $mute.blur(); });
-  $mute.textContent = muted ? 'ääni pois' : 'ääni';
+  $mute.textContent = muted ? 'sound off' : 'sound';
 
   window.addEventListener('resize', function () { resize(); if (SHOW >= 0) showForm(); else if (state === 'title') attract(); });
 

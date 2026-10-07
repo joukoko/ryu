@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#ece3cf">
-<title>Ryū – mustelohikäärme</title>
-<meta name="description" content="Ohjaa mustelohikäärmettä sormella, syö helmet ja varo omaa häntääsi.">
+<title>Ryū – pearl hunt</title>
+<meta name="description" content="Steer the ink dragon with your thumb, eat the pearls and mind your own tail.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
   @font-face {
@@ -133,27 +133,27 @@
 </head>
 <body data-state="title">
 
-<canvas id="c" aria-label="Ryū-peli"></canvas>
+<canvas id="c" aria-label="Ryū game"></canvas>
 
 <div class="hud">
-  <button id="mute" type="button" aria-label="Ääni päälle tai pois">ääni</button>
+  <button id="mute" type="button" aria-label="Sound on or off">sound</button>
   <div id="score" aria-live="off">0</div>
   <div id="mult"></div>
-  <div id="best">paras<b id="bestVal">0</b></div>
+  <div id="best">best<b id="bestVal">0</b></div>
 </div>
 
 <div class="screen on" id="titleScreen">
   <div class="kanji" aria-hidden="true">竜</div>
   <div class="name">RYŪ<i>.</i></div>
-  <div class="hint">Vedä sormea, lohikäärme ui siihen suuntaan.<br>Syö helmet. Varo häntääsi ja mustetahroja.</div>
-  <div class="go">Aloita napauttamalla</div>
+  <div class="hint">Drag your thumb and the dragon swims that way.<br>Eat the pearls. Mind your tail and the ink blots.</div>
+  <div class="go">Tap to start</div>
 </div>
 
 <div class="screen" id="overScreen">
-  <div class="over-label">TULOS</div>
+  <div class="over-label">SCORE</div>
   <div class="over-score" id="overScore">0</div>
-  <div class="over-best" id="overBest">paras 0</div>
-  <div class="go">Vielä kerran? Napauta.</div>
+  <div class="over-best" id="overBest">best 0</div>
+  <div class="go">Once more? Tap.</div>
 </div>
 
 <script>
@@ -466,7 +466,7 @@
     if (record) { best = score; store('ryu.best', String(best)); }
     document.getElementById('overScore').textContent = score;
     var ob = document.getElementById('overBest');
-    ob.textContent = record && score > 0 ? 'Uusi ennätys!' : 'paras ' + best;
+    ob.textContent = record && score > 0 ? 'New record!' : 'best ' + best;
     ob.classList.toggle('record', record && score > 0);
     $bestVal.textContent = best;
   }
@@ -830,11 +830,11 @@
   function toggleMute() {
     muted = !muted;
     store('ryu.muted', muted ? '1' : '0');
-    $mute.textContent = muted ? 'ääni pois' : 'ääni';
+    $mute.textContent = muted ? 'sound off' : 'sound';
     if (!muted) { initAudio(); pluck(noteFor(3), 0.25, 0.6); }
   }
   $mute.addEventListener('click', function () { toggleMute(); $mute.blur(); });
-  $mute.textContent = muted ? 'ääni pois' : 'ääni';
+  $mute.textContent = muted ? 'sound off' : 'sound';
 
   window.addEventListener('resize', resize);
 
