@@ -1,0 +1,1564 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ece3cf">
+<title>Ryū – mustelohikäärme</title>
+<meta name="description" content="Lennä koista lohikäärmeeksi: paina niin nouset, päästä niin liidät. Kerää helmet, väistä vuoret.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  @font-face {
+    font-family: "Yuji Boku";
+    font-display: swap;
+    src: url("fonts/yuji-boku-subset.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Cormorant Garamond";
+    font-weight: 500 700;
+    font-display: swap;
+    src: url("fonts/cormorant-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: "Cormorant Garamond";
+    font-weight: 500 700;
+    font-display: swap;
+    src: url("fonts/cormorant-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF;
+  }
+  :root { --ink: #17140f; --paper: #ece3cf; --red: #d7362b; --dim: #6f6654; --brush: "Yuji Boku", "Hiragino Mincho ProN", "Yu Mincho", serif; }
+  body.night { --ink: #ece3cf; --paper: #131c30; --dim: #a3abbb; --red: #f0553f; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #ece3cf;
+    color: var(--ink);
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    font-weight: 500;
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .hud { position: fixed; inset: 0; pointer-events: none; transition: color 0.8s; }
+  #score {
+    position: absolute;
+    top: max(22px, env(safe-area-inset-top));
+    left: 0; right: 0;
+    text-align: center;
+    font-family: var(--brush);
+    font-size: clamp(2.6rem, 9vw, 4.2rem);
+    line-height: 1;
+    opacity: 0.86;
+    transition: transform 0.18s cubic-bezier(.2, 2.2, .4, 1);
+  }
+  #score.pop { transform: scale(1.22); transition: none; }
+  #mult {
+    position: absolute;
+    top: max(22px, env(safe-area-inset-top));
+    margin-top: clamp(2.7rem, 9.4vw, 4.4rem);
+    left: 0; right: 0;
+    text-align: center;
+    font-family: var(--brush);
+    font-size: clamp(1.1rem, 3.6vw, 1.5rem);
+    color: var(--red);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  #mult.on { opacity: 1; }
+  #mult i { display: inline-block; width: 7px; height: 7px; margin: 0 2px; border-radius: 50%; border: 1px solid var(--red); vertical-align: middle; }
+  #mult i.f { background: var(--red); }
+  #mult.storm { font-family: inherit; font-weight: 700; letter-spacing: 0.3em; margin-right: -0.3em; }
+  #best {
+    position: absolute;
+    top: max(26px, env(safe-area-inset-top));
+    right: 34px;
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    text-align: right;
+    line-height: 1.2;
+  }
+  #best b { display: block; font-family: var(--brush); font-weight: 400; font-size: 1.5rem; letter-spacing: 0; color: var(--ink); opacity: 0.8; }
+  #mute {
+    position: absolute;
+    top: max(18px, env(safe-area-inset-top));
+    left: 24px;
+    letter-spacing: 0.08em;
+    pointer-events: auto;
+    background: none;
+    border: 0;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 1.05rem;
+    color: var(--dim);
+    cursor: pointer;
+  }
+  #mute:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+  /* kehitysvaihe ja matka seuraavaan, alareunassa */
+  #evo {
+    position: absolute;
+    bottom: max(15px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    text-shadow: 0 0 6px var(--paper), 0 0 3px var(--paper);
+  }
+  #evo i { display: block; width: 132px; height: 3px; margin: 5px auto 0; background: color-mix(in srgb, var(--ink) 22%, transparent); }
+  #evo b { display: block; height: 100%; width: 0; background: var(--red); transition: width 0.25s; }
+
+  #banner {
+    position: absolute;
+    top: 23%;
+    left: 0; right: 0;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity 0.35s, transform 0.35s;
+    text-shadow: 0 0 18px var(--paper), 0 0 8px var(--paper), 0 0 3px var(--paper);
+  }
+  #banner.on { opacity: 1; transform: none; }
+  #banner b { display: block; font-weight: 700; font-size: clamp(2rem, 8vw, 3.2rem); letter-spacing: 0.06em; line-height: 1.1; }
+  #banner span { font-size: clamp(1rem, 3.6vw, 1.3rem); letter-spacing: 0.24em; color: var(--red); }
+
+  body[data-show] .hud, body[data-show] .screen { display: none; }
+  body[data-state="title"] #score, body[data-state="title"] #mult, body[data-state="title"] #evo,
+  body[data-state="dead"] #score, body[data-state="dead"] #mult, body[data-state="dead"] #evo, body[data-state="dead"] #banner { visibility: hidden; }
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+    text-shadow: 0 0 18px var(--paper), 0 0 8px var(--paper), 0 0 3px var(--paper);
+  }
+  .screen.on { opacity: 1; }
+  .kanji { font-family: var(--brush); font-size: min(34vw, 30vh); line-height: 1; margin-bottom: 0.06em; }
+  .name { font-size: clamp(1.6rem, 5.4vw, 2.4rem); font-weight: 700; letter-spacing: 0.55em; margin-right: -0.55em; }
+  .name i { font-style: normal; color: var(--red); }
+  .hint { margin-top: 1.4em; font-size: clamp(1.1rem, 3.9vw, 1.35rem); color: var(--dim); line-height: 1.55; }
+  .go { margin-top: 1.3em; font-size: clamp(1.25rem, 4.4vw, 1.6rem); font-weight: 700; animation: breathe 2.2s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: 0.35; } }
+
+  .over-label { font-size: clamp(1rem, 3.6vw, 1.3rem); letter-spacing: 0.4em; margin-right: -0.4em; color: var(--dim); }
+  .over-score { font-family: var(--brush); font-size: min(34vw, 26vh); line-height: 1.05; }
+  .over-stage { font-size: clamp(1.2rem, 4.4vw, 1.6rem); font-weight: 700; }
+  .over-best { margin-top: 0.3em; font-size: clamp(1.1rem, 4vw, 1.5rem); color: var(--dim); }
+  .over-best.record { color: var(--red); }
+
+  @media (prefers-reduced-motion: reduce) { .go { animation: none; } }
+</style>
+</head>
+<body data-state="title">
+
+<canvas id="c" aria-label="Ryū-peli"></canvas>
+
+<div class="hud">
+  <button id="mute" type="button" aria-label="Ääni päälle tai pois">ääni</button>
+  <div id="score" aria-live="off">0</div>
+  <div id="mult"></div>
+  <div id="best">paras<b id="bestVal">0</b></div>
+  <div id="banner"><b id="bannerMain"></b><span id="bannerSub"></span></div>
+  <div id="evo"><span id="evoName">Koi</span><i><b id="evoBar"></b></i></div>
+</div>
+
+<div class="screen on" id="titleScreen">
+  <div class="kanji" aria-hidden="true">竜</div>
+  <div class="name">RYŪ<i>.</i></div>
+  <div class="hint">Paina, niin nouset. Päästä, niin liidät.<br>Kerää helmet ja kasva koista lohikäärmeeksi.</div>
+  <div class="go">Aloita napauttamalla</div>
+</div>
+
+<div class="screen" id="overScreen">
+  <div class="over-label">TULOS</div>
+  <div class="over-score" id="overScore">0</div>
+  <div class="over-stage" id="overStage"></div>
+  <div class="over-best" id="overBest">paras 0</div>
+  <div class="go">Vielä kerran? Napauta.</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var cv = document.getElementById('c');
+  var ctx = cv.getContext('2d');
+  var paper = document.createElement('canvas');
+  var frameCv = document.createElement('canvas');
+  var strips = [];
+
+  var INK = '#17140f', PAPER = '#ece3cf', NIGHT = '#131c30', RED = '#d7362b', GOLD = '#c9952c', CYAN = '#bfe9f5';
+  var AUTO = /[?&]auto/.test(location.search), REAL = /[?&]real/.test(location.search);
+  var SHOW = /[?&]show=/.test(location.search) ? parseInt(location.search.match(/show=(\d+)/)[1], 10) : -1;   // ?show=7: pelkkä muoto isona
+  var WOBBLE = parseInt((location.search.match(/wobble=(\d+)/) || [])[1], 10) || 0;
+
+  // kymmenen vaihetta, uusi aina sadan pisteen välein
+  var STAGES = [
+    { n: 'Koi',                len: 62,  r: 1.3,  head: 0.92, face: 'fish', tail: 1, dorsal: 1, pect: 1, dot: 1 },
+    { n: 'Perhoskoi',          len: 84,  r: 1.42, head: 1.0,  face: 'fish', tail: 2, veil: 1, dorsal: 1.4, pect: 1.9, dot: 1, patch: 1, barbel: 1 },
+    { n: 'Vesikäärme',         len: 150, r: 0.8,  head: 0.9,  face: 'eel', bands: 1, whisk: 0.45 },
+    { n: 'Sarvikäärme',        len: 162, r: 1.0,  head: 1.02, face: 'dragon', jaw: 1, horn: 0.75, sail: 1, whisk: 0.7, tuft: 0.7 },
+    { n: 'Nuori lohikäärme',   len: 180, r: 1.08, head: 1.1,  face: 'dragon', jaw: 1, horn: 0.95, spine: 0.85, spineStep: 6, legs: 0.8, mane: 0.9, whisk: 1, belly: 0.26, tuft: 0.9, bulk: 0.12 },
+    { n: 'Lohikäärme',         len: 196, r: 1.16, head: 1.2,  face: 'dragon', jaw: 1, horn: 1.25, spine: 1.05, spineStep: 5, legs: 1, mane: 1.15, maneCol: 'red', beard: 0.8, whisk: 1.15, belly: 0.75, bellyCol: 'red', scales: 1, fang: 1, tuft: 1.1, bulk: 0.2 },
+    { n: 'Myrskylohikäärme',   len: 210, r: 1.2, head: 1.26, face: 'dragon', jaw: 1, horn: 1.3, spine: 1.5, spineKind: 'bolt', spineStep: 6, legs: 1.05, mane: 1.3, beard: 0.9, whisk: 1.3, belly: 0.3, scales: 1, fang: 1, tuft: 1.2, bulk: 0.26, bolt: 1, eye: CYAN, glow: 1, accent: CYAN },
+    { n: 'Vuorten lohikäärme', len: 220, r: 1.36,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.45, hornW: 1.7, spine: 1.25, spineKind: 'plate', spineStep: 8, legs: 1.25, mane: 1.2, beard: 1.1, whisk: 1.0, belly: 0.22, fang: 1, tuft: 1.3, bulk: 0.42, cracks: 1, glow: 1, ember: 0.9 },
+    { n: 'Taivaan lohikäärme', len: 238, r: 1.24,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.5, spine: 1.0, spineStep: 5, legs: 1.15, mane: 1.6, beard: 1.2, whisk: 1.7, belly: 0.85, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.5, bulk: 0.3, wing: 1, gold: 1, glow: 1, eye: GOLD, ember: 0.6 },
+    { n: 'Ryūjin',             len: 258, r: 1.4,  head: 1.56, face: 'dragon', jaw: 1, horn: 1.7, crown: 1, spine: 1.5, spineKind: 'flame', spineStep: 4, legs: 1.35, mane: 1.9, beard: 1.5, whisk: 1.8, belly: 0.9, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.8, bulk: 0.46, gold: 1, glow: 1, pearl: 1, halo: 1, ember: 1.6, stripe: 1 }
+  ];
+  var STAGE_POINTS = 100, STORM_TIME = 4, STORM_NEED = 12;
+
+  var W = 0, H = 0, DPR = 1, U = 1, DS = 4, M = 12;
+  var TOP = 0, GROUND = 0, PH = 1, HEADX = 0, SW = 900;
+  var time = 0, camX = 0;
+
+  // ---------- pienet apurit ----------
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function hash(n) { var s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+  function ease(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function fetchStored(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  // ---------- tila ----------
+  var state = 'title';              // title | play | dead
+  var D = null;                     // lohikäärme
+  var rocks = [], gates = [], pearls = [], blots = [], drops = [], rings = [], floaters = [], track = [];
+  var score = 0, passed = 0, streak = 0, gateCount = 0, segId = 0, segs = {};
+  var best = parseInt(fetchStored('ryu.fly2.best'), 10) || 0;
+  var deadT = 0, shake = 0, hitstop = 0, stormT = 0, grace = 0, nightAmt = 0, trackAcc = 0;
+  var nextX = 0, prevX = null, prevGy = 0, prevDouble = false;
+  var holding = false, kick = false, bannerTimer = 0;
+  var muted = fetchStored('ryu.muted') === '1';
+  var stars = [];
+  for (var si = 0; si < 70; si++) stars.push([Math.random(), Math.random() * 0.62, rand(0.5, 1.5)]);
+
+  var $ = function (id) { return document.getElementById(id); };
+  var $score = $('score'), $mult = $('mult'), $bestVal = $('bestVal'), $title = $('titleScreen'), $over = $('overScreen'), $mute = $('mute');
+
+  function inkNow() { return nightAmt > 0.5 ? PAPER : INK; }
+  function bgNow() { return nightAmt > 0.5 ? NIGHT : PAPER; }
+
+  // ---------- ääni ----------
+  var ac = null, master = null, noiseBuf = null;
+  var SCALE = [293.66, 311.13, 392.0, 440.0, 523.25];   // in-sen-asteikko D:stä
+  function initAudio() {
+    if (muted) return;
+    if (!ac) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = 0.5;
+      master.connect(ac.destination);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate * 0.3, ac.sampleRate);
+      var ch = noiseBuf.getChannelData(0);
+      for (var i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    }
+    if (ac.state === 'suspended') ac.resume();
+  }
+  function pluck(freq, vol, dur, delay) {
+    if (muted || !ac) return;
+    var t = ac.currentTime + (delay || 0);
+    var o = ac.createOscillator(), o2 = ac.createOscillator();
+    var g = ac.createGain(), g2 = ac.createGain(), lp = ac.createBiquadFilter();
+    o.type = 'triangle'; o.frequency.value = freq;
+    o2.type = 'sine'; o2.frequency.value = freq * 2.005;
+    g2.gain.value = 0.22;
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(3400, t);
+    lp.frequency.exponentialRampToValueAtTime(600, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(master);
+    o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+  }
+  function noteFor(i) { return SCALE[i % 5] * Math.pow(2, Math.floor(i / 5)); }
+  function drum(vol, len) {
+    if (muted || !ac) return;
+    var t = ac.currentTime;
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(36, t + 0.4 * len);
+    g.gain.setValueAtTime(0.9 * vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7 * len);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.75 * len);
+    var n = ac.createBufferSource(), ng = ac.createGain(), lp = ac.createBiquadFilter();
+    n.buffer = noiseBuf; lp.type = 'lowpass'; lp.frequency.value = 900;
+    ng.gain.setValueAtTime(0.5 * vol, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    n.connect(lp); lp.connect(ng); ng.connect(master); n.start(t);
+  }
+  function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+  // ---------- paperi, kehys ja kaukaiset vuoret ----------
+  function makePaper() {
+    paper.width = cv.width; paper.height = cv.height;
+    var p = paper.getContext('2d'), i;
+    p.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var g = p.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.75);
+    g.addColorStop(0, '#f4ecd9'); g.addColorStop(1, '#e2d6bc');
+    p.fillStyle = g; p.fillRect(0, 0, W, H);
+
+    var sr = Math.min(W, H) * 0.17, sx = W * 0.78, sy = H * 0.2;
+    var sg = p.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr * 1.15);
+    sg.addColorStop(0, 'rgba(215,54,43,0.16)'); sg.addColorStop(0.82, 'rgba(215,54,43,0.13)'); sg.addColorStop(1, 'rgba(215,54,43,0)');
+    p.fillStyle = sg; p.beginPath(); p.arc(sx, sy, sr * 1.2, 0, 7); p.fill();
+
+    var count = Math.floor(W * H / 700);
+    for (i = 0; i < count; i++) {
+      var fx = Math.random() * W, fy = Math.random() * H, fa = Math.random() * Math.PI, fl = rand(5, 24);
+      p.strokeStyle = Math.random() < 0.5 ? 'rgba(120,104,74,' + rand(0.03, 0.08) + ')' : 'rgba(255,251,240,' + rand(0.06, 0.16) + ')';
+      p.lineWidth = rand(0.4, 1.1);
+      p.beginPath(); p.moveTo(fx, fy); p.lineTo(fx + Math.cos(fa) * fl, fy + Math.sin(fa) * fl); p.stroke();
+    }
+    for (i = 0; i < count / 3; i++) {
+      p.fillStyle = 'rgba(90,76,50,' + rand(0.03, 0.09) + ')';
+      p.fillRect(Math.random() * W, Math.random() * H, rand(0.6, 1.6), rand(0.6, 1.6));
+    }
+    var vg = p.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
+    vg.addColorStop(0, 'rgba(90,70,40,0)'); vg.addColorStop(1, 'rgba(90,70,40,0.2)');
+    p.fillStyle = vg; p.fillRect(0, 0, W, H);
+
+    // kehys: paperin reuna peittää maailman, päälle siveltimellä vedetty viiva
+    frameCv.width = cv.width; frameCv.height = cv.height;
+    var f = frameCv.getContext('2d');
+    f.setTransform(1, 0, 0, 1, 0, 0);
+    f.drawImage(paper, 0, 0);
+    f.setTransform(DPR, 0, 0, DPR, 0, 0);
+    f.globalCompositeOperation = 'destination-out';
+    f.fillRect(M, M, W - 2 * M, H - 2 * M);
+    f.globalCompositeOperation = 'source-over';
+    for (var pass = 0; pass < 2; pass++) {
+      f.strokeStyle = pass ? 'rgba(23,20,15,0.22)' : 'rgba(23,20,15,0.6)';
+      f.lineWidth = (pass ? 3.2 : 1.6) * U;
+      f.lineJoin = 'round';
+      f.beginPath();
+      var m = M + pass * 0.8, step = 14, x0, y0;
+      var wob = function (s) { return (hash(s + pass * 91) - 0.5) * 2.2 * U; };
+      f.moveTo(m, m);
+      for (x0 = m; x0 <= W - m; x0 += step) f.lineTo(x0, m + wob(x0));
+      for (y0 = m; y0 <= H - m; y0 += step) f.lineTo(W - m + wob(y0 + 999), y0);
+      for (x0 = W - m; x0 >= m; x0 -= step) f.lineTo(x0, H - m + wob(x0 + 1999));
+      for (y0 = H - m; y0 >= m; y0 -= step) f.lineTo(m + wob(y0 + 2999), y0);
+      f.closePath(); f.stroke();
+    }
+  }
+
+  function makeStrips() {
+    SW = Math.ceil(Math.max(W * 1.5, 900));
+    var layers = [[0.66, 0.22, 0.05, 1.7, 0.04], [0.76, 0.18, 0.075, 4.3, 0.09], [0.86, 0.14, 0.10, 8.9, 0.18]];
+    strips = layers.map(function (L) {
+      var c = document.createElement('canvas');
+      c.width = SW; c.height = Math.ceil(H);
+      var p = c.getContext('2d'), base = H * L[0], amp = H * L[1], s = L[3], k = Math.PI * 2 / SW;
+      p.beginPath(); p.moveTo(0, H);
+      for (var x = 0; x <= SW; x += 6) {
+        var n = Math.sin(k * 2 * x + s) * 0.5 + Math.sin(k * 5 * x + s * 2.1) * 0.3 + Math.sin(k * 11 * x + s * 0.7) * 0.2;
+        p.lineTo(x, base - amp * Math.pow(Math.max(0, n * 0.5 + 0.5), 1.6));
+      }
+      p.lineTo(SW, H); p.closePath();
+      var mg = p.createLinearGradient(0, base - amp, 0, Math.min(H, base + amp * 0.9));
+      mg.addColorStop(0, 'rgba(40,36,30,' + L[2] + ')'); mg.addColorStop(1, 'rgba(40,36,30,0)');
+      p.fillStyle = mg; p.fill();
+      return { cv: c, par: L[4] };
+    });
+  }
+
+  function resize() {
+    W = window.innerWidth; H = window.innerHeight;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    U = clamp(Math.min(W, H) / 420, 0.85, 1.6);
+    DS = 4 * U; M = 12 * U;
+    TOP = M + 16 * U; GROUND = H - M - 30 * U; PH = GROUND - TOP;
+    HEADX = Math.max(W * 0.3, 96 * U);
+    makePaper();
+    makeStrips();
+  }
+
+  // ---------- lohikäärme ----------
+  function newDragon(stage) {
+    var len = STAGES[stage].len * U;
+    var d = { x: 0, y: TOP + PH * 0.45, a: 0, w: 0, vx: 150 * U, vy: 0, len: len, lenT: len, pts: [], acc: 0, id: 0, gulp: 0, stage: stage };
+    var n = Math.ceil(d.len / DS);
+    for (var i = n; i >= 1; i--) d.pts.push({ x: d.x - i * DS, y: d.y, id: d.id++ });
+    return d;
+  }
+  var R = function () { return 9 * U; };            // osumasäde, sama kaikissa vaiheissa
+  function bodyLen() { return Math.max(DS * 3, Math.min(D.len, D.acc + (D.pts.length - 1) * DS)); }
+  function profile(t) {
+    return (0.78 + 0.3 * Math.sin(Math.min(1, t / 0.35) * Math.PI * 0.5)) * (1 - Math.pow(t, 2.2)) + 0.04;
+  }
+
+  // ---------- kivet: vuoret, riippuvat kärjet ja leijuvat lohkareet ----------
+  function spireHW(s, f) { return s.hw * (0.12 + 0.88 * Math.pow(clamp(f, 0, 1), 1.25)); }
+  function makeSpire(cx, tip, base) {
+    var h = Math.abs(base - tip);
+    var s = { type: 's', cx: cx, cy: tip, tip: tip, base: base, hw: clamp(h * 0.26, 38 * U, 92 * U), lean: rand(-20, 20) * U, seed: Math.random() * 1000, left: [], right: [], minClear: 1e9 };
+    var N = 12;
+    for (var i = 0; i <= N; i++) {
+      var f = i / N, y = lerp(tip, base, f), c = cx + s.lean * (1 - f), hw = spireHW(s, f);
+      s.left.push([c - hw * (1 + (hash(s.seed + i) - 0.5) * 0.3), y]);
+      s.right.push([c + hw * (1 + (hash(s.seed + i + 50) - 0.5) * 0.3), y]);
+    }
+    return s;
+  }
+  function makeBoulder(cx, cy, rx, ry) {
+    var b = { type: 'b', cx: cx, cy: cy, rx: rx, ry: ry, seed: Math.random() * 1000, poly: [], minClear: 1e9 };
+    for (var i = 0; i < 20; i++) {
+      var a = i / 20 * Math.PI * 2, k = 1 + (hash(b.seed + i) - 0.5) * 0.26;
+      b.poly.push([Math.cos(a) * rx * k, Math.sin(a) * ry * k]);
+    }
+    return b;
+  }
+  // etäisyys kiven pintaan, negatiivinen = sisällä
+  function rockClear(o, x, y) {
+    if (o.type === 'b') {
+      var ex = (x - o.cx) / o.rx, ey = (y - o.cy) / o.ry;
+      return (Math.sqrt(ex * ex + ey * ey) - 0.9) * Math.min(o.rx, o.ry);
+    }
+    var f = (y - o.tip) / (o.base - o.tip);
+    if (f < 0) return Math.hypot(x - (o.cx + o.lean), y - o.tip) - 2 * U;
+    if (f > 1) f = 1;
+    return Math.abs(x - (o.cx + o.lean * (1 - f))) - spireHW(o, f) * 0.82;
+  }
+
+  function addPearl(x, y, gold, seg, route) { pearls.push({ x: x, y: y, r: (gold ? 8 : 9) * U, gold: !!gold, born: time, missed: false, seg: seg, route: route }); }
+  function arc(x0, y0, x1, y1, ts, seg, route, bulge) {
+    for (var k = 0; k < ts.length; k++) {
+      var t = ts[k];
+      addPearl(lerp(x0, x1, t), clamp(lerp(y0, y1, ease(t)) + Math.sin(Math.PI * t) * bulge, TOP + 18 * U, GROUND - 22 * U), false, seg, route);
+    }
+  }
+
+  function makeBlot(x, y) {
+    var r = rand(14, 22) * U, parts = [], i;
+    for (i = 0; i < 8; i++) { var a = rand(0, 7), d = rand(0, r * 0.5); parts.push([Math.cos(a) * d, Math.sin(a) * d, rand(0.5, 0.8) * r]); }
+    for (i = 0; i < 5; i++) { var a2 = rand(0, 7), d2 = rand(r * 1.0, r * 1.7); parts.push([Math.cos(a2) * d2, Math.sin(a2) * d2, rand(0.06, 0.16) * r]); }
+    blots.push({ x: x, y0: y, y: y, r: r, parts: parts, ph: rand(0, 7) });
+  }
+
+  function spawnAhead() {
+    if (SHOW >= 0) return;
+    while (nextX < camX + W + 340 * U) {
+      if (state === 'title') {                       // nimiruutu: pelkkä helminauha
+        addPearl(nextX, TOP + PH * (0.5 + 0.24 * Math.sin(nextX * 0.0042 / U)), false, 0, 'a');
+        nextX += 96 * U;
+        continue;
+      }
+      var n = gateCount++, roll = Math.random();
+      var kind = n < 2 ? 'pair' : roll < 0.36 ? 'double' : roll < 0.6 ? 'edge' : 'pair';
+      var gap = PH * Math.max(0.2, 0.3 - n * 0.004);
+      // paljonko ehtii nousta tai laskea edellisestä portista: yhtään porttia ei tehdä mahdottomaksi
+      var vxN = (170 + Math.min(n, 50) * 2.4) * U, reach = prevX === null ? PH : 0.44 * PH * ((nextX - prevX) / vxN) * 0.72;
+      var lo = TOP + gap / 2 + PH * 0.06, hi = GROUND - gap / 2 - PH * 0.06;
+      var seg = ++segId, gy, altGy = null, x = nextX;
+      segs[seg] = { a: 0, b: 0 };
+
+      if (kind === 'double') {
+        // leijuva lohkare jakaa reitin: väljä aukko ja ahdas aukko, jossa kultainen helmi
+        var hb = PH * rand(0.14, 0.2), tight = Math.max(gap * 0.6, 50 * U), bestCfg = null;
+        for (var tries = 0; tries < 6; tries++) {
+          var free = PH - gap - tight - hb, a = free * rand(0.2, 0.8), up = Math.random() < 0.5;
+          var gU = up ? gap : tight, gL = up ? tight : gap, y1 = TOP + a, y2 = y1 + gU, y3 = y2 + hb, y4 = y3 + gL;
+          var mainY = up ? (y1 + y2) / 2 : (y3 + y4) / 2, cfg = { y1: y1, y2: y2, y3: y3, y4: y4, main: mainY, alt: up ? (y3 + y4) / 2 : (y1 + y2) / 2 };
+          if (!bestCfg || Math.abs(mainY - prevGy) < Math.abs(bestCfg.main - prevGy)) bestCfg = cfg;
+        }
+        if (Math.abs(bestCfg.main - prevGy) > reach) kind = 'pair';
+      }
+      if (kind === 'edge') {                         // aukko aivan ylhäällä tai alhaalla: yli vuoren tai kärjen ali
+        var eg = Math.abs(lo - prevGy) > Math.abs(hi - prevGy) ? lo : hi;
+        if (Math.abs(eg - prevGy) > reach) eg = eg === lo ? hi : lo;
+        if (Math.abs(eg - prevGy) > reach || Math.abs(eg - prevGy) < PH * 0.1) kind = 'pair'; else gy = eg;
+      }
+      if (kind === 'double') {
+        gy = bestCfg.main; altGy = bestCfg.alt;
+        rocks.push(makeSpire(x + rand(-14, 14) * U, bestCfg.y1, TOP - 60 * U));
+        rocks.push(makeBoulder(x, (bestCfg.y2 + bestCfg.y3) / 2, rand(36, 52) * U, (bestCfg.y3 - bestCfg.y2) / 2));
+        rocks.push(makeSpire(x + rand(-14, 14) * U, bestCfg.y4, H + 40 * U));
+      } else {
+        if (kind === 'pair') {
+          var dlt = Math.min(reach, PH * 0.42);
+          gy = prevX === null ? clamp(D.y, lo, hi) : clamp(prevGy + (Math.random() < 0.5 ? -1 : 1) * rand(0.35, 1) * dlt, lo, hi);
+        }
+        rocks.push(makeSpire(x + rand(-18, 18) * U, gy - gap / 2, TOP - 60 * U));
+        rocks.push(makeSpire(x + rand(-18, 18) * U, gy + gap / 2, H + 40 * U));
+      }
+      gates.push({ x: x, gy: gy, done: false });
+
+      // helmet: kaari edellisestä aukosta tähän; kaksoisportissa polku haarautuu
+      var x0 = prevX === null ? D.x + 150 * U : prevX + 70 * U, y0 = prevX === null ? D.y : prevGy, x1 = x - 70 * U;
+      var ts = prevDouble ? [0.55, 0.85] : [1 / 6, 0.5, 5 / 6];
+      if (x1 - x0 > 60 * U) {
+        arc(x0, y0, x1, gy, ts, seg, 'a', rand(-1, 1) * PH * 0.06);
+        if (altGy !== null) arc(x0, y0, x1, altGy, ts.slice(1), seg, 'b', 0);
+      }
+      if (altGy !== null) { addPearl(x, gy, false, seg, 'a'); addPearl(x, altGy, true, seg, 'b'); }
+      else if (n > 2 && Math.random() < 0.15) addPearl(x, gy + (Math.random() < 0.5 ? -1 : 1) * gap * 0.3, true, seg, 'a');
+      else addPearl(x, gy, false, seg, 'a');
+
+      if (n >= 5 && kind === 'pair' && prevX !== null && !prevDouble && Math.random() < 0.55) {
+        var my = (y0 + gy) / 2, side = my > TOP + PH / 2 ? -1 : 1;
+        makeBlot((prevX + x) / 2, clamp(my + side * PH * rand(0.24, 0.32), TOP + 30 * U, GROUND - 40 * U));
+      }
+      prevX = x; prevGy = gy; prevDouble = kind === 'double';
+      nextX = x + (228 + rand(0, 46)) * U;
+    }
+  }
+
+  function splash(x, y, n, col, power, big) {
+    for (var i = 0; i < n; i++) {
+      var a = rand(0, 6.283), sp = rand(30, 190) * U * power;
+      drops.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(0.8, big ? 7 : 3.4) * U, life: rand(0.35, big ? 1.1 : 0.8), col: col });
+    }
+  }
+
+  // ---------- viestit ja mittarit ----------
+  function banner(main, sub, ms) {
+    $('bannerMain').textContent = main; $('bannerSub').textContent = sub || '';
+    $('banner').classList.add('on');
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(function () { $('banner').classList.remove('on'); }, ms || 1900);
+  }
+  function setState(s) {
+    state = s;
+    document.body.dataset.state = s;
+    $title.classList.toggle('on', s === 'title');
+    $over.classList.remove('on');
+  }
+  function showScore(pop) {
+    $score.textContent = score;
+    if (pop) {
+      $score.classList.add('pop');
+      requestAnimationFrame(function () { requestAnimationFrame(function () { $score.classList.remove('pop'); }); });
+    }
+    if (stormT > 0) $mult.textContent = 'MYRSKY';
+    else {                                           // putki kohti myrskyä, piste per helmi
+      var pips = '';
+      for (var k = 0; k < STORM_NEED; k++) pips += k < streak ? '<i class="f"></i>' : '<i></i>';
+      $mult.innerHTML = pips;
+    }
+    $mult.classList.toggle('storm', stormT > 0);
+    $mult.classList.toggle('on', stormT > 0 || streak >= 3);
+    $bestVal.textContent = Math.max(best, score);
+    var last = D.stage >= STAGES.length - 1;
+    $('evoName').textContent = STAGES[D.stage].n + ' · ' + (D.stage + 1) + ' / ' + STAGES.length;
+    $('evoBar').style.width = (last ? 100 : (score % STAGE_POINTS) / STAGE_POINTS * 100) + '%';
+  }
+
+  // ---------- pelin kulku ----------
+  function resetWorld(stage) {
+    D = newDragon(stage);
+    rocks = []; gates = []; pearls = []; blots = []; floaters = []; drops = []; rings = []; track = [];
+    segs = {}; segId = 0; gateCount = 0;
+    camX = D.x - HEADX;
+    prevX = null; prevGy = D.y; prevDouble = false;
+    stormT = 0; grace = 0; nightAmt = 0; trackAcc = 0;
+    document.body.classList.remove('night');
+  }
+  function start() {
+    resetWorld(0);
+    score = 0; passed = 0; streak = 0; shake = 0; hitstop = 0;
+    setState('play');
+    nextX = D.x + Math.max(W * 0.75, 430 * U);
+    D.vy = -PH * 0.18;
+    spawnAhead();
+    showScore(false);
+    pluck(noteFor(0), 0.25, 0.7); pluck(noteFor(2), 0.2, 0.9, 0.09);
+  }
+  function attract() {
+    resetWorld(5);
+    nextX = D.x + 120 * U;
+    spawnAhead();
+  }
+
+  function addScore(n) {
+    score += n;
+    var st = Math.min(STAGES.length - 1, Math.floor(score / STAGE_POINTS));
+    if (st > D.stage) evolve(st);
+  }
+  function evolve(st) {
+    D.stage = st;
+    D.lenT = STAGES[st].len * U;
+    grace = Math.max(grace, 1.1);
+    hitstop = 0.14;
+    shake = Math.max(shake, 7 * U);
+    rings.push({ x: D.x, y: D.y, r: 10 * U, max: 150 * U, life: 1, col: GOLD });
+    rings.push({ x: D.x, y: D.y, r: 6 * U, max: 90 * U, life: 1, col: RED });
+    splash(D.x, D.y, 30, GOLD, 1.3);
+    banner(STAGES[st].n, (st + 1) + ' / ' + STAGES.length, 2200);
+    for (var i = 0; i < 4; i++) pluck(noteFor(3 + i * 2), 0.26, 1.1, i * 0.085);
+    buzz([20, 30, 60]);
+  }
+
+  function startStorm() {
+    stormT = STORM_TIME;
+    banner('MYRSKY', 'murskaa vuoret', 1600);
+    rings.push({ x: D.x, y: D.y, r: 10 * U, max: 220 * U, life: 1, col: RED });
+    shake = Math.max(shake, 9 * U);
+    drum(0.7, 1.4);
+    pluck(noteFor(0) / 2, 0.4, 1.6); pluck(noteFor(2) / 2, 0.32, 1.6, 0.05); pluck(noteFor(4), 0.25, 1.4, 0.1);
+    buzz([30, 30, 30, 30, 80]);
+  }
+  function smash(x, y, big) {
+    splash(x, y, big ? 44 : 22, 'ink', 1.6, true);
+    splash(x, y, 8, RED, 1.2);
+    rings.push({ x: x, y: y, r: 10 * U, max: 120 * U, life: 1, col: 'ink' });
+    shake = Math.max(shake, 12 * U);
+    hitstop = 0.06;
+    drum(0.6, 0.6);
+    buzz(30);
+    addScore(2);
+    floaters.push({ x: x, y: y - 20 * U, txt: '+2', life: 1, col: RED, size: 26 * U });
+    showScore(true);
+  }
+  function graze(o) {
+    var gx0 = D.x + 6 * U, gy0 = D.y;
+    addScore(1);
+    floaters.push({ x: gx0, y: gy0 - 26 * U, txt: 'hipaisu +1', life: 1.2, col: GOLD, size: 17 * U, serif: true });
+    for (var i = 0; i < 12; i++) drops.push({ x: gx0, y: gy0, vx: -rand(40, 220) * U, vy: rand(-110, 110) * U, r: rand(0.8, 2.2) * U, life: rand(0.25, 0.55), col: GOLD });
+    pluck(noteFor(9), 0.2, 0.35); pluck(noteFor(11), 0.16, 0.4, 0.05);
+    buzz(12);
+    showScore(true);
+  }
+
+  function eat(i) {
+    var p = pearls[i];
+    pearls.splice(i, 1);
+    D.gulp = 1;
+    splash(p.x, p.y, p.gold ? 26 : 12, p.gold ? GOLD : RED, 1);
+    rings.push({ x: p.x, y: p.y, r: p.r, max: (p.gold ? 80 : 50) * U, life: 1, col: p.gold ? GOLD : RED });
+    if (state !== 'play') return;
+    if (segs[p.seg]) segs[p.seg][p.route]++;
+    if (!p.gold && stormT <= 0) streak++;
+    var gain = p.gold ? 3 : 1;
+    if (p.gold) floaters.push({ x: p.x, y: p.y - 14 * U, txt: '+3', life: 1, col: GOLD, size: 26 * U });
+    hitstop = Math.max(hitstop, p.gold ? 0.08 : 0.03);
+    shake = Math.max(shake, (p.gold ? 6 : 2) * U);
+    buzz(p.gold ? 25 : 8);
+    if (p.gold) { pluck(noteFor(streak + 2), 0.3, 0.9); pluck(noteFor(streak + 4), 0.26, 1.0, 0.07); pluck(noteFor(streak + 7), 0.24, 1.3, 0.14); }
+    else pluck(noteFor(Math.min(streak, 14)), 0.32, 0.8);
+    addScore(gain);
+    if (stormT <= 0 && streak >= STORM_NEED) startStorm();
+    showScore(true);
+  }
+
+  function die() {
+    state = 'dead';
+    document.body.dataset.state = 'dead';
+    deadT = 0;
+    shake = 16 * U;
+    splash(D.x, D.y, 46, 'ink', 1.5);
+    splash(D.x, D.y, 10, RED, 1.1);
+    rings.push({ x: D.x, y: D.y, r: 6 * U, max: 130 * U, life: 1, col: 'ink' });
+    drum(1, 1);
+    buzz([40, 40, 90]);
+    $mult.classList.remove('on');
+    track.push(D.x, D.y);
+    var record = score > best;
+    if (record) { best = score; store('ryu.fly2.best', String(best)); }
+    $('overScore').textContent = score;
+    $('overStage').textContent = STAGES[D.stage].n + ' · ' + (D.stage + 1) + ' / ' + STAGES.length;
+    var ob = $('overBest');
+    ob.textContent = record && score > 0 ? 'Uusi ennätys!' : 'paras ' + best;
+    ob.classList.toggle('record', record && score > 0);
+    $bestVal.textContent = best;
+  }
+
+  // itse lentävä lohikäärme: nimiruutu ja testaus
+  function aiHold() {
+    var aim = null, i, bx = Infinity;
+    for (i = 0; i < gates.length; i++) {
+      if (gates[i].x > D.x - 30 * U) { if (gates[i].x - D.x < 320 * U) aim = gates[i].gy; break; }
+    }
+    if (aim === null) for (i = 0; i < pearls.length; i++) if (!pearls[i].gold && pearls[i].route === 'a' && pearls[i].x > D.x + 10 * U && pearls[i].x < bx) { bx = pearls[i].x; aim = pearls[i].y; }
+    if (aim === null) aim = TOP + PH * 0.5;
+    if (WOBBLE) aim += (Math.sin(time * 2.3) + 0.5 * Math.sin(time * 5.1 + 1)) * WOBBLE * U;   // testi: epätarkka lentäjä
+    return D.y + D.vy * 0.14 > aim + 4 * U;
+  }
+
+  function update(dt) {
+    time += dt;
+    var i, o;
+
+    if (state === 'dead') {
+      deadT += dt;
+      if (deadT > 0.75) $over.classList.add('on');
+    } else {
+      var ai = state === 'title' || AUTO;
+      var hold = ai ? aiHold() : holding;
+      if (kick && !ai) {                             // painallus tuntuu heti
+        D.vy = Math.min(D.vy, -PH * 0.15);
+        for (i = 0; i < 4; i++) drops.push({ x: D.x - rand(4, 16) * U, y: D.y + rand(4, 12) * U, vx: -rand(40, 120) * U, vy: rand(40, 130) * U, r: rand(1, 2.6) * U, life: rand(0.25, 0.5), col: 'wash' });
+      }
+      kick = false;
+      D.vy += (hold ? -2.5 : 1.5) * PH * dt;
+      D.vy = clamp(D.vy, -PH * 0.54, PH * 0.44);
+      if (SHOW >= 0) { D.vy = Math.cos(time * 3.6) * 3.6 * 15 * U; D.gulp = Math.max(D.gulp, Math.max(0, Math.sin(time * 1.3) - 0.55) * 2); }
+      D.vx = (170 + Math.min(passed, 50) * 2.4) * U * (stormT > 0 ? 1.3 : 1);
+      if (state === 'title') D.vx = 120 * U;
+
+      var sx = D.vx * dt, sy = D.vy * dt;
+      D.x += sx; D.y += sy;
+      if (D.y < TOP) { D.y = TOP; if (D.vy < 0) D.vy = 0; }
+      var step = Math.hypot(sx, sy), ux = sx / (step || 1), uy = sy / (step || 1);
+      D.acc += step;
+      while (D.acc >= DS) {
+        D.acc -= DS;
+        D.pts.push({ x: D.x - ux * D.acc, y: D.y - uy * D.acc, id: D.id++ });
+      }
+      trackAcc += step;
+      if (state === 'play' && trackAcc > 12 * U) { trackAcc = 0; track.push(D.x, D.y); }
+      var ta = Math.atan2(D.vy, D.vx) * 0.85, pa = D.a;
+      D.a += (ta - D.a) * Math.min(1, dt * 12);
+      D.w = (D.a - pa) / (dt || 1);
+      D.len += (D.lenT - D.len) * Math.min(1, dt * 3);
+      var maxPts = Math.ceil(D.len / DS) + 2;
+      if (D.pts.length > maxPts) D.pts.splice(0, D.pts.length - maxPts);
+      D.gulp = Math.max(0, D.gulp - dt * 4);
+      camX = D.x - HEADX;
+      var em = STAGES[D.stage].ember;                  // kipinät rungosta
+      if (em && Math.random() < em * 26 * dt && D.pts.length > 6) {
+        var ep = D.pts[Math.floor(rand(0.2, 1) * (D.pts.length - 1))];
+        drops.push({ x: ep.x, y: ep.y, vx: -rand(10, 60) * U, vy: -rand(20, 90) * U, r: rand(0.8, 2.2) * U, life: rand(0.4, 0.9), col: STAGES[D.stage].gold ? GOLD : RED });
+      }
+
+      spawnAhead();
+
+      for (i = pearls.length - 1; i >= 0; i--) {
+        var p = pearls[i];
+        if (Math.hypot(p.x - D.x, p.y - D.y) < p.r + R() * 1.7) { eat(i); continue; }
+        if (!p.missed && p.x < D.x - 46 * U) {
+          p.missed = true;
+          // ohi mennyt helmi katkaisee putken, paitsi jos valitsit portin toisen reitin
+          var sg = segs[p.seg], other = p.route === 'a' ? 'b' : 'a';
+          if (!p.gold && state === 'play' && stormT <= 0 && streak > 0 && !(sg && sg[other] > 0)) { streak = 0; showScore(false); }
+        }
+        if (p.x < camX - 60 * U) pearls.splice(i, 1);
+      }
+      for (i = 0; i < blots.length; i++) blots[i].y = blots[i].y0 + Math.sin(time * 1.6 + blots[i].ph) * 18 * U;
+
+      if (state === 'play') {
+        if (stormT > 0) {
+          stormT -= dt;
+          if (stormT <= 0) { stormT = 0; streak = 0; grace = Math.max(grace, 1.2); showScore(false); }
+        }
+        if (grace > 0) grace -= dt;
+        var wantNight = Math.floor(passed / 15) % 2 === 1;
+        if (wantNight !== (nightAmt > 0.5) && (nightAmt === 0 || nightAmt === 1)) banner(wantNight ? 'Yö' : 'Aamu', '', 1500);
+        nightAmt = clamp(nightAmt + (wantNight ? 1 : -1) * dt * 0.45, 0, 1);
+        document.body.classList.toggle('night', nightAmt > 0.5);
+
+        for (i = 0; i < gates.length; i++) {
+          if (!gates[i].done && gates[i].x < D.x - 24 * U) {
+            gates[i].done = true; passed++;
+            pluck(146.83, 0.12, 0.35);
+          }
+        }
+
+        var safe = (AUTO && !REAL) || grace > 0, dead = false;
+        if (D.y > GROUND - R() * 0.6) {
+          if (stormT > 0 || safe) { D.y = GROUND - R() * 0.6; D.vy = -PH * 0.3; }
+          else dead = true;
+        }
+        for (i = rocks.length - 1; i >= 0; i--) {
+          o = rocks[i];
+          if (Math.abs(o.cx - D.x) > 130 * U) continue;
+          var c = rockClear(o, D.x, D.y) - R() * 0.45;
+          if (c < o.minClear) o.minClear = c;
+          if (c < 0) {
+            if (stormT > 0) { smash(D.x + 14 * U, D.y, true); rocks.splice(i, 1); }
+            else if (!safe) dead = true;
+          }
+        }
+        for (i = blots.length - 1; i >= 0; i--) {
+          if (Math.hypot(blots[i].x - D.x, blots[i].y - D.y) < blots[i].r * 0.8 + R() * 0.5) {
+            if (stormT > 0) { smash(blots[i].x, blots[i].y, false); blots.splice(i, 1); }
+            else if (!safe) dead = true;
+          }
+        }
+        // hipaisu: kiven ohi läheltä osumatta
+        for (i = 0; i < rocks.length; i++) {
+          o = rocks[i];
+          if (!o.judged && o.cx < D.x - 70 * U) {
+            o.judged = true;
+            if (o.minClear < 11 * U && o.minClear >= 0 && stormT <= 0 && !dead) graze(o);
+          }
+        }
+        if (dead) die();
+      } else if (D.y > GROUND - R()) {
+        D.y = GROUND - R(); D.vy = -PH * 0.3;
+      }
+      while (rocks.length && rocks[0].cx < camX - 140 * U) rocks.shift();
+      while (gates.length && gates[0].x < camX - 140 * U) gates.shift();
+      while (blots.length && blots[0].x < camX - 80 * U) blots.shift();
+    }
+
+    for (i = drops.length - 1; i >= 0; i--) {
+      var d = drops[i];
+      d.life -= dt; d.x += d.vx * dt; d.y += d.vy * dt;
+      d.vx *= Math.pow(0.02, dt); d.vy *= Math.pow(0.02, dt);
+      if (d.life <= 0) drops.splice(i, 1);
+    }
+    for (i = rings.length - 1; i >= 0; i--) { rings[i].life -= dt * 1.7; if (rings[i].life <= 0) rings.splice(i, 1); }
+    for (i = floaters.length - 1; i >= 0; i--) { floaters[i].life -= dt * 1.1; floaters[i].y -= 34 * U * dt; if (floaters[i].life <= 0) floaters.splice(i, 1); }
+    shake *= Math.pow(0.0015, dt);
+    if (stormT > 0) shake = Math.max(shake, 1.6 * U);
+  }
+
+  // ---------- piirto ----------
+  var gx = [], gy = [], gn = [], gm = [], gh = [], gi = [], gt = [];
+
+  function buildBody(P) {
+    var n = D.pts.length, c = 0, j, p, s, t, len = bodyLen();
+    gx[c] = D.x; gy[c] = D.y; gi[c] = D.id; gt[c] = 0; c++;
+    for (j = 0; j < n; j++) {
+      s = D.acc + j * DS; t = s / len;
+      if (t > 1) break;
+      p = D.pts[n - 1 - j];
+      gx[c] = p.x; gy[c] = p.y; gi[c] = p.id; gt[c] = t; c++;
+    }
+    for (j = 0; j < c; j++) {
+      var a = Math.max(0, j - 1), b = Math.min(c - 1, j + 1);
+      var dx = gx[a] - gx[b], dy = gy[a] - gy[b], l = Math.hypot(dx, dy) || 1;
+      dx /= l; dy /= l;
+      gn[j] = -dy; gm[j] = dx;                       // normaali
+      var jit = 0.93 + (0.12 + 0.3 * gt[j]) * ((hash(gi[j]) + hash(gi[j] + 1)) * 0.5 - 0.35);   // reuna rosoisempi kuivassa päässä
+      var bump = P.bulk ? P.bulk * Math.exp(-Math.pow((gt[j] - 0.22) / 0.14, 2)) : 0;   // leveä rinta
+      var pf = P.face === 'fish' ? (0.5 + 0.62 * Math.sin(Math.PI * Math.min(1, (gt[j] + 0.06) / 0.8))) * (1 - Math.pow(gt[j], 3)) + 0.06 : (0.8 + 0.3 * Math.sin(Math.min(1, gt[j] / 0.3) * Math.PI * 0.5)) * (1 - Math.pow(gt[j], 1.45)) + 0.03;
+      gh[j] = R() * P.r * (pf + bump) * jit;
+      var off = Math.sin(gi[j] * 0.2 - time * 7) * 3.2 * U * ease(gt[j] * 2.5);   // aaltoilu, vain silmälle
+      gx[j] += gn[j] * off; gy[j] += gm[j] * off;
+    }
+    return c;
+  }
+  function idxAt(c, t) { for (var j = 0; j < c; j++) if (gt[j] >= t) return j; return c - 1; }
+
+  // yksi siveltimenveto: kaareva, painosta paksuneva ja kärkeen oheneva. Lisää muodon nykyiseen polkuun.
+  function dab(x0, y0, cx, cy, x1, y1, w0, w1) {
+    var N = 7, lx = [], ly = [], rx = [], ry = [], i;
+    for (i = 0; i <= N; i++) {
+      var t = i / N, mt = 1 - t;
+      var x = mt * mt * x0 + 2 * mt * t * cx + t * t * x1, y = mt * mt * y0 + 2 * mt * t * cy + t * t * y1;
+      var dx = 2 * mt * (cx - x0) + 2 * t * (x1 - cx), dy = 2 * mt * (cy - y0) + 2 * t * (y1 - cy), l = Math.hypot(dx, dy) || 1;
+      var w = (w0 + (w1 - w0) * t) * (1 + 0.38 * Math.sin(Math.PI * Math.min(1, t * 1.25))) * 0.5;
+      lx[i] = x - dy / l * w; ly[i] = y + dx / l * w; rx[i] = x + dy / l * w; ry[i] = y - dx / l * w;
+    }
+    ctx.moveTo(lx[0], ly[0]);
+    for (i = 1; i <= N; i++) ctx.lineTo(lx[i], ly[i]);
+    for (i = N; i >= 0; i--) ctx.lineTo(rx[i], ry[i]);
+    ctx.closePath();
+  }
+
+  function drawDragon(alpha) {
+    var P = STAGES[D.stage], c = buildBody(P), j;
+    if (c < 4) return;
+    if (grace > 0 && state === 'play') alpha *= 0.6 + 0.4 * Math.sin(time * 34);
+    var acc = P.accent || (P.gold ? GOLD : INK);
+    var maneCol = P.maneCol === 'red' ? RED : P.gold ? GOLD : INK;
+    // sivukuva: k > 0 on selän puoli, k < 0 vatsan puoli
+    function px(q, k) { return gx[q] - gn[q] * gh[q] * k; }
+    function py(q, k) { return gy[q] - gm[q] * gh[q] * k; }
+    function at(t) { for (var q = 0; q < c; q++) if (gt[q] >= t) return q; return c - 1; }
+
+    function wing(scale, a0, col) {                    // siipi: viuhka pitkiä sulkavetoja
+      var w = at(0.26), ux = -gn[w], uy = -gm[w], bx = -gm[w], by = gn[w];
+      var rx = px(w, 0.5), ry = py(w, 0.5), flap = Math.sin(time * 5) * 0.3, L = 96 * U * P.wing * scale;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      for (var q = 0; q < 7; q++) {
+        var an = a0 + q * 0.24 + flap * (0.4 + q * 0.12), ln = L * (1 - q * 0.075);
+        var dx = ux * Math.cos(an) + bx * Math.sin(an), dy = uy * Math.cos(an) + by * Math.sin(an);
+        dab(rx, ry, rx + dx * ln * 0.5 - dy * ln * 0.16, ry + dy * ln * 0.5 + dx * ln * 0.16, rx + dx * ln, ry + dy * ln, 7.5 * U * scale, 0.4 * U);
+      }
+      ctx.fill();
+    }
+    function leg(t, far) {                             // jalka: kaksi vetoa ja kolme kynnen sipaisua
+      var k = at(t);
+      if (k < 2 || k > c - 3) return;
+      var dnx = gn[k], dny = gm[k], fx = gm[k], fy = -gn[k];
+      var L = gh[k] * 1.2 * P.legs, sw = Math.sin(time * 6 + t * 9 + (far ? 1.6 : 0)) * 0.25, w = 4.2 * U * P.r * (far ? 0.8 : 1);
+      var ax = px(k, -0.5), ay = py(k, -0.5);
+      var kx = ax + (dnx * 0.85 - fx * (0.5 + sw)) * L, ky = ay + (dny * 0.85 - fy * (0.5 + sw)) * L;
+      var ex = kx + (dnx * 0.6 + fx * (0.6 + sw)) * L, ey = ky + (dny * 0.6 + fy * (0.6 + sw)) * L;
+      ctx.beginPath();
+      dab(ax, ay, ax + dnx * L * 0.5 - fx * L * 0.05, ay + dny * L * 0.5 - fy * L * 0.05, kx, ky, w * 1.25, w * 0.7);
+      dab(kx, ky, kx + dnx * L * 0.42 + fx * L * 0.12, ky + dny * L * 0.42 + fy * L * 0.12, ex, ey, w * 0.75, w * 0.4);
+      [[0.62, -0.02], [0.5, 0.34], [0.2, 0.56]].forEach(function (v) {
+        dab(ex, ey, ex + (fx * v[0] * 0.5 + dnx * (v[1] - 0.12)) * L, ey + (fy * v[0] * 0.5 + dny * (v[1] - 0.12)) * L, ex + (fx * v[0] + dnx * v[1]) * L, ey + (fy * v[0] + dny * v[1]) * L, w * 0.42, 0.2 * U);
+      });
+      ctx.fill();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    // --- rungon takana: kauempi siipi ja jalat ---
+    if (P.wing) wing(0.8, 0.52, 'rgba(150,108,30,0.7)');
+    if (P.legs) {
+      ctx.fillStyle = INK; ctx.globalAlpha = alpha * 0.45;
+      leg(0.27, true); leg(0.6, true);
+      ctx.globalAlpha = alpha;
+    }
+
+    // --- selkä: purje, piikit, laatat, salamat tai liekit ---
+    if (P.sail) {
+      var s0 = at(0.08), s1 = at(0.78), sailH = function (q) { return 1 + P.sail * 1.7 * Math.pow(Math.sin(Math.PI * (q - s0) / Math.max(1, s1 - s0)), 0.8) * (0.74 + 0.26 * Math.sin(gi[q] * 0.9)); };
+      ctx.fillStyle = 'rgba(215,54,43,0.62)';            // punainen pesu
+      for (var sp = 0; sp < 2; sp++) {
+        ctx.beginPath();
+        ctx.moveTo(px(s0, 0.8), py(s0, 0.8));
+        for (j = s0; j <= s1; j++) ctx.lineTo(px(j, sailH(j) * (sp ? 0.86 : 1)), py(j, sailH(j) * (sp ? 0.86 : 1)));
+        for (j = s1; j >= s0; j--) ctx.lineTo(px(j, 0.8), py(j, 0.8));
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = INK; ctx.beginPath();              // ruodot ohuina vetoina
+      for (j = s0 + 1; j < s1; j++) {
+        if (gi[j] % 4 !== 0) continue;
+        var sh = sailH(j);
+        dab(px(j, 0.8), py(j, 0.8), px(j, sh * 0.6) - gm[j] * 3 * U, py(j, sh * 0.6) + gn[j] * 3 * U, px(j, sh) - gm[j] * 7 * U, py(j, sh) + gn[j] * 7 * U, 2 * U, 0.3 * U);
+      }
+      ctx.fill();
+    }
+    if (P.spine) {
+      var kind = P.spineKind || 'spike', step = P.spineStep || 6;
+      for (var pass = 0; pass < (kind === 'flame' ? 2 : 1); pass++) {
+        ctx.fillStyle = kind === 'flame' ? (pass ? 'rgba(214,160,48,0.92)' : 'rgba(215,54,43,0.82)') : acc;
+        ctx.beginPath();
+        for (j = 2; j < c - 2; j++) {
+          if (gi[j] % step !== 0 || gt[j] < 0.05 || gt[j] > 0.9) continue;
+          var ux = -gn[j], uy = -gm[j], fx = gm[j], fy = -gn[j], s = gh[j] * P.spine, bx = px(j, 0.8), by = py(j, 0.8);
+          if (kind === 'bolt') {                       // salama saa olla terävä
+            ctx.moveTo(bx + fx * s * 0.4, by + fy * s * 0.4);
+            ctx.lineTo(bx + ux * s * 1.0 - fx * s * 0.1, by + uy * s * 1.0 - fy * s * 0.1);
+            ctx.lineTo(bx + ux * s * 0.8 + fx * s * 0.4, by + uy * s * 0.8 + fy * s * 0.4);
+            ctx.lineTo(bx + ux * s * 2.3 - fx * s * 1.3, by + uy * s * 2.3 - fy * s * 1.3);
+            ctx.lineTo(bx + ux * s * 0.75 - fx * s * 0.5, by + uy * s * 0.75 - fy * s * 0.5);
+            ctx.lineTo(bx - fx * s * 0.4, by - fy * s * 0.4);
+            ctx.closePath();
+          } else if (kind === 'plate') {               // leveä, lyhyt täplävedon kaltainen kivilaatta
+            dab(bx + fx * s * 0.3, by + fy * s * 0.3, bx + ux * s * 0.9 + fx * s * 0.35, by + uy * s * 0.9 + fy * s * 0.35, bx + ux * s * 1.9 - fx * s * 0.7, by + uy * s * 1.9 - fy * s * 0.7, s * 1.5, s * 0.15);
+          } else if (kind === 'flame') {
+            var fl = (pass ? 0.62 : 1) * (1.7 + 0.7 * Math.sin(time * 9 + gi[j] * 0.9)), lean = 1.5 + 0.6 * Math.sin(time * 7 + gi[j]);
+            dab(bx + fx * s * 0.2, by + fy * s * 0.2, bx + ux * s * fl * 0.75 + fx * s * 0.25, by + uy * s * fl * 0.75 + fy * s * 0.25, bx + ux * s * fl - fx * s * lean, by + uy * s * fl - fy * s * lean, s * 0.8, 0.2 * U);
+          } else {
+            dab(bx + fx * s * 0.25, by + fy * s * 0.25, bx + ux * s * 1.15 + fx * s * 0.05, by + uy * s * 1.15 + fy * s * 0.05, bx + ux * s * 1.5 - fx * s * 1.6, by + uy * s * 1.5 - fy * s * 1.6, s * 0.62, 0.2 * U);
+          }
+        }
+        ctx.fill();
+      }
+    }
+
+    // --- kalan evät laimeana pesuna, ruodot tummina ---
+    var e = c - 1, e2 = Math.max(0, c - 4), tdx = gx[e] - gx[e2], tdy = gy[e] - gy[e2], tl = Math.hypot(tdx, tdy) || 1;
+    tdx /= tl; tdy /= tl;
+    if (P.tail) {
+      var L = 16 * U * P.tail, wv = P.veil ? Math.sin(time * 4) * 0.25 : 0, tx0 = gx[e] - tdx * 4 * U, ty0 = gy[e] - tdy * 4 * U;
+      var t1x = gx[e] + tdx * L - tdy * L * (0.85 + wv), t1y = gy[e] + tdy * L + tdx * L * (0.85 + wv), t2x = gx[e] + tdx * L + tdy * L * (0.85 - wv), t2y = gy[e] + tdy * L - tdx * L * (0.85 - wv);
+      ctx.fillStyle = 'rgba(23,20,15,0.42)';
+      ctx.beginPath();
+      ctx.moveTo(tx0, ty0);
+      ctx.quadraticCurveTo(gx[e] + tdx * L * 0.3 - tdy * L * 0.5, gy[e] + tdy * L * 0.3 + tdx * L * 0.5, t1x, t1y);
+      ctx.quadraticCurveTo(gx[e] + tdx * L * 0.55, gy[e] + tdy * L * 0.55, t2x, t2y);
+      ctx.quadraticCurveTo(gx[e] + tdx * L * 0.3 + tdy * L * 0.5, gy[e] + tdy * L * 0.3 - tdx * L * 0.5, tx0, ty0);
+      ctx.fill();
+      ctx.fillStyle = INK; ctx.beginPath();
+      [[t1x, t1y, -1], [t2x, t2y, 1], [(t1x + t2x) / 2 - tdx * L * 0.25, (t1y + t2y) / 2 - tdy * L * 0.25, 0]].forEach(function (v) {
+        dab(tx0, ty0, (tx0 + v[0]) / 2 - tdy * L * 0.18 * v[2], (ty0 + v[1]) / 2 + tdx * L * 0.18 * v[2], v[0], v[1], 2.6 * U, 0.3 * U);
+      });
+      ctx.fill();
+    }
+    if (P.dorsal) {
+      var d0 = at(0.26), d1 = at(0.64), dm = at(0.4), dh = 1 + 1.5 * P.dorsal;
+      var dtx = px(dm, dh) - gm[dm] * gh[dm] * 1.2, dty = py(dm, dh) + gn[dm] * gh[dm] * 1.2;
+      ctx.fillStyle = 'rgba(23,20,15,0.42)';
+      ctx.beginPath();
+      ctx.moveTo(px(d0, 0.8), py(d0, 0.8));
+      ctx.quadraticCurveTo(px(d0, dh * 0.9), py(d0, dh * 0.9), dtx, dty);
+      ctx.quadraticCurveTo(px(d1, dh * 0.4), py(d1, dh * 0.4), px(d1, 0.8), py(d1, 0.8));
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = INK; ctx.beginPath();
+      dab(px(d0, 0.8), py(d0, 0.8), px(d0, dh * 0.9), py(d0, dh * 0.9), dtx, dty, 2.8 * U, 0.3 * U);
+      ctx.fill();
+    }
+    if (P.tuft) {                                      // hännänpää: kolme liehuvaa vetoa
+      var TL = 20 * U * P.tuft;
+      ctx.fillStyle = P.spineKind === 'flame' ? RED : acc;
+      ctx.beginPath();
+      [-0.6, 0.05, 0.65].forEach(function (an, q) {
+        var a2 = an + Math.sin(time * 5 + q) * 0.12, cs = Math.cos(a2), sn = Math.sin(a2), ln = TL * (q === 1 ? 1.2 : 0.8);
+        var ddx = tdx * cs - tdy * sn, ddy = tdx * sn + tdy * cs;
+        dab(gx[e] - tdx * 5 * U, gy[e] - tdy * 5 * U, gx[e] + ddx * ln * 0.5 - ddy * ln * 0.2 * (q - 1), gy[e] + ddy * ln * 0.5 + ddx * ln * 0.2 * (q - 1), gx[e] + ddx * ln, gy[e] + ddy * ln, 4.4 * U * P.tuft, 0.2 * U);
+      });
+      ctx.fill();
+    }
+
+    // --- runko: yksi märkä veto, joka kuivuu häntää kohti ---
+    var bleed = stormT > 0 ? RED : P.halo ? GOLD : 'rgba(23,20,15,0.5)';
+    ctx.shadowColor = bleed; ctx.shadowBlur = (stormT > 0 ? 22 : P.halo ? 18 : 6) * U;   // musteen leviäminen paperiin
+    var bg = ctx.createLinearGradient(gx[0], gy[0], gx[e], gy[e]);
+    bg.addColorStop(0, 'rgba(23,20,15,0.98)'); bg.addColorStop(0.55, 'rgba(23,20,15,0.93)'); bg.addColorStop(1, 'rgba(23,20,15,0.7)');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(px(0, 1), py(0, 1));
+    for (j = 1; j < c; j++) ctx.lineTo(px(j, 1), py(j, 1));
+    for (j = c - 1; j >= 0; j--) ctx.lineTo(px(j, -1), py(j, -1));
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // kuiva sivellin: paperi näkyy vedon läpi, eniten hännässä
+    var lanes = [0.62, 0.3, -0.05, 0.82], dashes = [[15, 9, 34, 17], [26, 14, 9, 22], [8, 26, 20, 12], [5, 30, 12, 40]], traveled = D.id * DS + D.acc, j0 = Math.max(2, Math.floor(c * 0.18));
+    for (var k = 0; k < 4; k++) {
+      var ds = dashes[k].map(function (v) { return v * U; });
+      ctx.setLineDash(ds);
+      ctx.lineDashOffset = -(traveled % (ds[0] + ds[1] + ds[2] + ds[3]));
+      for (var half = 0; half < 2; half++) {           // loppupää kuivempi
+        var a0 = half ? Math.floor(c * 0.55) : j0, a1 = half ? c - 2 : Math.floor(c * 0.55) + 1;
+        ctx.strokeStyle = 'rgba(236,227,207,' + (half ? 0.34 : 0.16) + ')';
+        ctx.lineWidth = (half ? 1.5 : 1) * U;
+        ctx.beginPath();
+        for (j = a0; j < a1; j++) { if (j === a0) ctx.moveTo(px(j, lanes[k]), py(j, lanes[k])); else ctx.lineTo(px(j, lanes[k]), py(j, lanes[k])); }
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+
+    if (P.belly) {                                     // vatsa: väripesu ja ohuet kilpiviivat
+      var b1 = Math.floor(c * 0.9), bc = P.bellyCol === 'gold' ? '214,160,48' : P.bellyCol === 'red' ? '215,54,43' : '236,227,207';
+      for (var bp = 0; bp < 2; bp++) {
+        ctx.fillStyle = 'rgba(' + bc + ',' + P.belly * (bp ? 0.5 : 0.55) + ')';
+        ctx.beginPath();
+        ctx.moveTo(px(1, -0.96), py(1, -0.96));
+        for (j = 2; j < b1; j++) ctx.lineTo(px(j, -0.96), py(j, -0.96));
+        for (j = b1 - 1; j >= 1; j--) ctx.lineTo(px(j, bp ? -0.62 : -0.42), py(j, bp ? -0.62 : -0.42));
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(23,20,15,0.38)'; ctx.lineWidth = 0.8 * U;
+      ctx.beginPath();
+      for (j = 2; j < b1; j++) { if (gi[j] % 2) continue; ctx.moveTo(px(j, -0.95), py(j, -0.95)); ctx.quadraticCurveTo(px(j, -0.7) - gm[j] * 1.5 * U, py(j, -0.7) + gn[j] * 1.5 * U, px(j, -0.45), py(j, -0.45)); }
+      ctx.stroke();
+    }
+    if (P.bands) {                                     // ankeriaan poikkiraidat
+      ctx.strokeStyle = 'rgba(236,227,207,0.42)'; ctx.lineWidth = 2.2 * U; ctx.lineCap = 'butt';
+      ctx.beginPath();
+      for (j = 4; j < c - 4; j++) { if (gi[j] % 7 > 1) continue; ctx.moveTo(px(j, 0.92), py(j, 0.92)); ctx.lineTo(px(j, -0.92), py(j, -0.92)); }
+      ctx.stroke(); ctx.lineCap = 'round';
+    }
+    if (P.patch) {                                     // koin punaiset laikut, märkää väriä märälle
+      [0.3, 0.52, 0.74].forEach(function (t, q) {
+        var k = at(t), rr = gh[k] * (q === 1 ? 0.62 : 0.5), an = Math.atan2(-gn[k], gm[k]);
+        ctx.fillStyle = 'rgba(215,54,43,0.6)';
+        ctx.beginPath(); ctx.ellipse(px(k, 0.25), py(k, 0.25), rr * 1.6, rr, an, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(215,54,43,0.75)';
+        ctx.beginPath(); ctx.ellipse(px(k, 0.3), py(k, 0.3), rr * 1.1, rr * 0.65, an, 0, 7); ctx.fill();
+      });
+    }
+    if (P.scales) {                                    // suomut: harvat kaaret selän puolella
+      ctx.strokeStyle = 'rgba(236,227,207,0.24)'; ctx.lineWidth = 0.9 * U;
+      ctx.beginPath();
+      for (j = 4; j < c * 0.8; j++) {
+        if (gi[j] % 4 !== 0) continue;
+        var sa = Math.atan2(gn[j], -gm[j]), sr = gh[j] * 0.48, cx0 = px(j, 0.28), cy0 = py(j, 0.28);
+        ctx.moveTo(cx0 + Math.cos(sa - 1.1) * sr, cy0 + Math.sin(sa - 1.1) * sr);
+        ctx.arc(cx0, cy0, sr, sa - 1.1, sa + 1.1);
+      }
+      ctx.stroke();
+    }
+    if (P.cracks) {                                    // hehkuvat halkeamat kivisessä rungossa
+      ctx.strokeStyle = RED; ctx.lineWidth = 1.4 * U; ctx.shadowColor = RED; ctx.shadowBlur = 7 * U;
+      ctx.globalAlpha = alpha * (0.7 + 0.3 * Math.sin(time * 3));
+      ctx.beginPath();
+      for (j = 3; j < c * 0.85; j++) {
+        var off = (hash(gi[j] * 3.1) - 0.5) * 1.1;
+        if (j === 3) ctx.moveTo(px(j, off), py(j, off)); else ctx.lineTo(px(j, off), py(j, off));
+        if (gi[j] % 6 === 0) { ctx.lineTo(px(j, off + 0.6), py(j, off + 0.6)); ctx.moveTo(px(j, off), py(j, off)); }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0; ctx.globalAlpha = alpha;
+    }
+    if (P.stripe) {                                    // punainen juova kylkeä pitkin
+      ctx.fillStyle = 'rgba(215,54,43,0.85)';
+      ctx.beginPath();
+      var st1 = Math.floor(c * 0.8);
+      for (j = 2; j < st1; j++) { var sw0 = 0.16 * (1 - (j - 2) / (st1 - 2)) + 0.03; if (j === 2) ctx.moveTo(px(j, 0.14 + sw0), py(j, 0.14 + sw0)); else ctx.lineTo(px(j, 0.14 + sw0), py(j, 0.14 + sw0)); }
+      for (j = st1 - 1; j >= 2; j--) { var sw1 = 0.16 * (1 - (j - 2) / (st1 - 2)) + 0.03; ctx.lineTo(px(j, 0.14 - sw1), py(j, 0.14 - sw1)); }
+      ctx.closePath(); ctx.fill();
+    }
+    if (P.pect) {                                      // rintaevä
+      var pk = at(0.3), pl = gh[pk] * 1.5 * P.pect, pw = P.veil ? Math.sin(time * 4 + 1) * 0.2 : 0;
+      var p0x = px(pk, -0.45), p0y = py(pk, -0.45), p1x = p0x + gn[pk] * pl * (0.95 + pw) - gm[pk] * pl * 1.2, p1y = p0y + gm[pk] * pl * (0.95 + pw) + gn[pk] * pl * 1.2;
+      ctx.fillStyle = 'rgba(23,20,15,0.42)';
+      ctx.beginPath();
+      ctx.moveTo(p0x + gm[pk] * pl * 0.3, p0y - gn[pk] * pl * 0.3);
+      ctx.quadraticCurveTo(p0x + gn[pk] * pl * 0.8, p0y + gm[pk] * pl * 0.8, p1x, p1y);
+      ctx.quadraticCurveTo(p0x - gm[pk] * pl * 0.9, p0y + gn[pk] * pl * 0.9, p0x - gm[pk] * pl * 0.5, p0y + gn[pk] * pl * 0.5);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = INK; ctx.beginPath();
+      dab(p0x + gm[pk] * pl * 0.2, p0y - gn[pk] * pl * 0.2, p0x + gn[pk] * pl * 0.8, p0y + gm[pk] * pl * 0.8, p1x, p1y, 2.6 * U, 0.3 * U);
+      ctx.fill();
+    }
+
+    // --- rungon edessä: jalat, siipi, salamat ---
+    if (P.legs) { ctx.fillStyle = INK; leg(0.22, false); leg(0.55, false); }
+    if (P.wing) wing(1, 0.12, 'rgba(214,160,48,0.94)');
+    if (P.bolt && hash(Math.floor(time * 14)) < 0.7) {
+      var seed = Math.floor(time * 14) * 7.7;
+      ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5 * U; ctx.shadowColor = CYAN; ctx.shadowBlur = 10 * U;
+      ctx.beginPath();
+      for (var b = 0; b < 3; b++) {
+        var q0 = 1 + Math.floor(hash(seed + b) * (c - 3)), sd = hash(seed + b + 0.5) < 0.5 ? 1.2 : -1.2, lx = px(q0, sd), ly = py(q0, sd);
+        ctx.moveTo(lx, ly);
+        for (var z = 0; z < 4; z++) {
+          lx += (hash(seed + b * 9 + z) - 0.5) * 30 * U; ly += (hash(seed + b * 9 + z + 40) - 0.5) * 30 * U;
+          ctx.lineTo(lx, ly);
+        }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // --- pää sivulta ---
+    ctx.translate(D.x, D.y);
+    ctx.rotate(D.a);
+    var sc = U * P.head * (1 + 0.1 * D.gulp);
+    ctx.scale(sc, sc);
+    var sway = Math.sin(time * 5) * 3 - clamp(D.w, -3, 3) * 1.6, wl = P.whisk || 0, hn = P.horn || 0;
+    var hornCol = P.gold ? GOLD : INK, eyeCol = P.eye || RED;
+    ctx.shadowColor = 'rgba(23,20,15,0.45)';
+    if (P.face === 'fish') {
+      ctx.fillStyle = INK; ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(14.5, 1.5);
+      ctx.bezierCurveTo(13, -7, 3, -12, -10, -10);
+      ctx.bezierCurveTo(-12, -3, -12, 4, -10, 10);
+      ctx.bezierCurveTo(2, 11.5, 12, 8, 14.5, 1.5);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(236,227,207,0.38)'; ctx.lineWidth = 1;   // kiduskaari
+      ctx.beginPath(); ctx.arc(-10, 0, 9.5, -0.9, 0.9); ctx.stroke();
+      if (P.barbel) {
+        ctx.fillStyle = INK; ctx.beginPath();
+        dab(12.5, 4, 15, 10, 8, 14 + sway * 0.4, 1.5, 0.2);
+        dab(10.5, 6, 11.5, 12, 3.5, 14 + sway * 0.4, 1.3, 0.2);
+        ctx.fill();
+      }
+      if (P.dot) {
+        ctx.fillStyle = 'rgba(215,54,43,0.65)'; ctx.beginPath(); ctx.ellipse(0.5, -6.6, 5.4, 3.5, -0.25, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(215,54,43,0.85)'; ctx.beginPath(); ctx.ellipse(1, -7, 3.6, 2.2, -0.25, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(6.5, -1.5, 2.5, 0, 7); ctx.fill();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(7, -1.5, 1.4, 0, 7); ctx.fill();
+    } else {
+      if (P.face === 'eel') ctx.scale(1, 0.72);
+      var o = P.jaw ? 1 + D.gulp * 6 + (stormT > 0 ? 3 : 0) : 0;
+      if (hn) {                                        // kauempi sarvi
+        ctx.fillStyle = hornCol; ctx.globalAlpha = alpha * 0.5;
+        ctx.beginPath(); dab(2, -9.5, -6 * hn, -16, -15 * hn, -9 - 12 * hn, (2.6 + hn) * (P.hornW || 1), 0.5); ctx.fill();
+        ctx.globalAlpha = alpha;
+      }
+      if (P.mane) {                                    // harja: liehuvia vetoja niskasta taakse
+        var mn = P.mane;
+        ctx.fillStyle = maneCol;
+        ctx.beginPath();
+        [-10, -6.5, -3, 1, 5, 8.5].forEach(function (y0, q) {
+          var ln = (16 + 6 * Math.sin(q * 2.1)) * mn, y1 = y0 * 1.7 + sway * (0.35 + q * 0.05) + (q - 2.5) * 1.2 * mn;
+          dab(-6, y0, -8 - ln * 0.55, y0 * 1.1 - 3 * mn, -8 - ln, y1, 3.6 + mn, 0.25);
+        });
+        ctx.fill();
+      }
+      if (P.beard) {                                   // parta leuan alla
+        var bd = P.beard;
+        ctx.fillStyle = maneCol;
+        ctx.beginPath();
+        dab(9, 6.4 + o * 0.7, 6, 13 + 4 * bd, -1 - 5 * bd, 13 + 8 * bd + sway * 0.4, 3.2, 0.25);
+        dab(4, 7.6 + o * 0.5, 0, 12 + 2 * bd, -7 - 5 * bd, 12 + 5 * bd + sway * 0.4, 3, 0.25);
+        ctx.fill();
+      }
+      if (o > 1.5) {                                   // suun sisus
+        ctx.fillStyle = 'rgba(215,54,43,0.9)';
+        ctx.beginPath(); ctx.moveTo(0, 1.8); ctx.quadraticCurveTo(12, 0.4, 21, -0.2); ctx.lineTo(18.5, 3 + o); ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = INK; ctx.shadowBlur = 4;
+      ctx.beginPath();                                 // kallo ja pitkä kuono
+      ctx.moveTo(-10, -8.5);
+      ctx.bezierCurveTo(-4, -12.5, 4, -11.5, 9, -7.6);
+      ctx.bezierCurveTo(13, -6.4, 17, -7.6, 21, -6.2);
+      ctx.bezierCurveTo(25, -5, 25, -1.4, 21.5, -0.4);
+      ctx.bezierCurveTo(15, 0.9, 8, 0.6, 1, 2.1);
+      ctx.lineTo(-10, 3.6);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();                                 // alaleuka
+      ctx.moveTo(-10, 2.4);
+      ctx.bezierCurveTo(-2, 2.4, 4, 3 + o * 0.3, 19, 2.6 + o);
+      ctx.bezierCurveTo(20.8, 4.2 + o, 17, 5.7 + o, 13, 5.8 + o * 0.9);
+      ctx.bezierCurveTo(6, 6.6 + o * 0.5, -2, 9.2, -10, 9);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+      if (P.fang) {
+        ctx.fillStyle = PAPER;
+        ctx.beginPath();
+        dab(18.6, -0.2, 18.2, 2, 17.4, 4.2, 1.9, 0.2);
+        dab(13, 0.4, 12.8, 2, 12.2, 3.4, 1.6, 0.2);
+        dab(15.5, 3 + o * 0.86, 15.6, 1.6 + o * 0.8, 16, 0.2 + o * 0.8, 1.7, 0.2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(236,227,207,0.7)'; ctx.lineWidth = 0.9;   // sieraimen kiehkura
+      ctx.beginPath(); ctx.arc(21.6, -3.3, 1.3, 0.6, 4.6); ctx.stroke();
+      ctx.fillStyle = PAPER;                           // mantelisilmä
+      ctx.beginPath(); ctx.ellipse(7, -5.2, 2.9, 1.9, -0.28, 0, 7); ctx.fill();
+      ctx.fillStyle = eyeCol;
+      if (P.glow) { ctx.shadowColor = eyeCol; ctx.shadowBlur = 9; }
+      ctx.beginPath(); ctx.arc(7.5, -5.1, P.glow ? 1.7 : 1.2, 0, 7); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = INK;                             // kulmakarva yhtenä vetona
+      ctx.beginPath(); dab(0.5, -9.6, 6, -10.2, 12.5, -6.2, 2.9, 0.4); ctx.fill();
+      if (hn) {                                        // sarvet: hirven sarvien tapaan haarautuvat vedot
+        ctx.fillStyle = hornCol;
+        ctx.beginPath();
+        var hw0 = (2.8 + hn) * (P.hornW || 1);
+        dab(-1, -10.5, -8 * hn, -17.5, -18 * hn - 2, -10 - 12.5 * hn, hw0, 0.5);
+        if (hn > 0.9) dab(-6.5 * hn, -14.6, -6 * hn, -19 - 3 * hn, -9.5 * hn - 2, -18 - 8 * hn, hw0 * 0.6, 0.3);
+        if (hn > 1.2) dab(-12 * hn, -13 - 5 * hn, -13 * hn, -17 - 8 * hn, -17 * hn - 3, -19 - 10 * hn, hw0 * 0.5, 0.3);
+        if (P.crown) { dab(3, -10.5, 2, -19, -5, -11 - 14 * hn, hw0 * 0.8, 0.4); dab(-14 * hn, -9 - 8 * hn, -17 * hn, -8 - 7 * hn, -21 * hn - 4, -7 - 10 * hn, hw0 * 0.5, 0.3); }
+        ctx.fill();
+      }
+      if (wl) {                                        // viikset: pitkät ohenevat vedot
+        ctx.fillStyle = P.gold ? GOLD : P.accent || INK;
+        ctx.beginPath();
+        dab(22.5, -3, 36 - 4 * wl, -19 * wl, -10 * wl + 2, -17 * wl + sway, 1.7, 0.15);
+        dab(20, 1.6 + o * 0.3, 32 - 4 * wl, 17 * wl + o * 0.3, -8 * wl + 2, 15 * wl + sway, 1.5, 0.15);
+        ctx.fill();
+      }
+    }
+    if (P.pearl) {                                     // Ryūjinin liekehtivä helmi kuonon edessä
+      var py0 = -5 + Math.sin(time * 3) * 2;
+      ctx.shadowColor = GOLD; ctx.shadowBlur = 14;
+      ctx.fillStyle = 'rgba(215,54,43,0.85)';
+      ctx.beginPath();
+      dab(35, py0 + 3, 31, py0 - 5, 36 - 3 * Math.sin(time * 9), py0 - 12 - 3 * Math.sin(time * 11), 7, 0.3);
+      dab(37, py0 + 3, 40, py0 - 3, 39.5 + 2 * Math.sin(time * 8 + 1), py0 - 9 - 2 * Math.sin(time * 10 + 2), 5, 0.3);
+      ctx.fill();
+      ctx.fillStyle = GOLD;
+      ctx.beginPath(); ctx.arc(36, py0 + 1, 3.6, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,246,228,0.7)';
+      ctx.beginPath(); ctx.arc(34.8, py0 - 0.2, 1, 0, 7); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }
+
+  function rockPath(o, widen) {
+    var i, c;
+    ctx.beginPath();
+    if (o.type === 'b') {
+      for (i = 0; i < o.poly.length; i++) {
+        var px = o.cx + o.poly[i][0] * widen, py = o.cy + o.poly[i][1] * (1 + (widen - 1) * 0.5);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+    } else {
+      for (i = 0; i < o.left.length; i++) {
+        c = o.cx + o.lean * (1 - i / (o.left.length - 1));
+        var lx = c + (o.left[i][0] - c) * widen;
+        if (i === 0) ctx.moveTo(lx, o.left[i][1]); else ctx.lineTo(lx, o.left[i][1]);
+      }
+      for (i = o.right.length - 1; i >= 0; i--) {
+        c = o.cx + o.lean * (1 - i / (o.right.length - 1));
+        ctx.lineTo(c + (o.right[i][0] - c) * widen, o.right[i][1]);
+      }
+    }
+    ctx.closePath();
+  }
+  function drawRock(o) {
+    ctx.fillStyle = 'rgba(40,36,30,0.10)';             // laimea pesu ympärillä
+    rockPath(o, 1.55); ctx.fill();
+    ctx.fillStyle = 'rgba(23,20,15,0.93)';
+    rockPath(o, 1); ctx.fill();
+    ctx.strokeStyle = 'rgba(236,227,207,0.17)';        // kuivat vedot
+    ctx.lineWidth = 1.2 * U; ctx.lineCap = 'round';
+    for (var k = 0; k < 3; k++) {
+      var lane = [-0.45, 0.1, 0.5][k];
+      ctx.setLineDash([(18 + k * 9) * U, (10 + k * 5) * U, (34 - k * 6) * U, 15 * U]);
+      ctx.lineDashOffset = o.seed + k * 13;
+      ctx.beginPath();
+      if (o.type === 'b') {
+        ctx.moveTo(o.cx + o.rx * lane, o.cy - o.ry * 0.7); ctx.lineTo(o.cx + o.rx * lane * 0.8, o.cy + o.ry * 0.7);
+      } else {
+        for (var i = 1; i < o.left.length; i++) {
+          var f = i / (o.left.length - 1), y = lerp(o.tip, o.base, f), x = o.cx + o.lean * (1 - f) + spireHW(o, f) * lane;
+          if (i === 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  function drawPearl(p) {
+    var age = time - p.born, grow = ease(age / 0.3), pulse = 1 + Math.sin(time * 4 + p.x * 0.05) * 0.07;
+    var r = p.r * grow * pulse;
+    var col = p.gold ? '216,164,52' : '225,60,46';
+    var g = ctx.createRadialGradient(p.x, p.y, r * 0.3, p.x, p.y, r * 2.4);
+    g.addColorStop(0, 'rgba(' + col + ',' + (0.32 + nightAmt * 0.25) + ')'); g.addColorStop(1, 'rgba(' + col + ',0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.4, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(' + col + ',0.93)';
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x + r * 0.16, p.y + r * 0.2, r * 0.9, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,246,228,0.5)';
+    ctx.beginPath(); ctx.arc(p.x - r * 0.32, p.y - r * 0.36, r * 0.24, 0, 7); ctx.fill();
+  }
+
+  function drawBlot(b) {
+    ctx.fillStyle = 'rgba(23,20,15,0.92)';
+    ctx.beginPath();
+    for (var i = 0; i < b.parts.length; i++) {
+      var q = b.parts[i];
+      ctx.moveTo(b.x + q[0] + q[2], b.y + q[1]);
+      ctx.arc(b.x + q[0], b.y + q[1], q[2], 0, 7);
+    }
+    ctx.fill();
+  }
+
+  function groundY(x, ph) { return GROUND + Math.sin((x / U + ph) * 0.02) * 3 * U + Math.sin((x / U + ph) * 0.0071 + 1.3) * 4 * U; }
+  function drawGround() {
+    var x, ph = camX / U;
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (x = 0; x <= W + 10; x += 10) ctx.lineTo(x, groundY(x, ph));
+    ctx.lineTo(W, H); ctx.closePath();
+    ctx.fillStyle = 'rgba(40,36,30,0.2)'; ctx.fill();
+    ctx.beginPath();
+    for (x = 0; x <= W + 10; x += 10) { if (x === 0) ctx.moveTo(x, groundY(x, ph)); else ctx.lineTo(x, groundY(x, ph)); }
+    ctx.strokeStyle = 'rgba(23,20,15,0.6)'; ctx.lineWidth = 1.8 * U; ctx.stroke();
+  }
+
+  // lentosi yhtenä siveltimenvetona, punainen leima perässä
+  function drawPainting() {
+    var k = ease((deadT - 0.3) / 0.6);
+    if (k <= 0) return;
+    ctx.globalAlpha = 0.84 * k; ctx.fillStyle = bgNow(); ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    var n = track.length / 2;
+    if (n < 3) return;
+    var x0 = track[0], x1 = track[track.length - 2], span = Math.max(1, x1 - x0);
+    var L = M + 30 * U, Rr = W - M - 44 * U, prog = ease((deadT - 0.5) / 1.5), upto = Math.max(2, Math.floor(prog * n));
+    var mx = function (i) { return lerp(L, Rr, (track[i * 2] - x0) / span); };
+    var my = function (i) { return lerp(H * 0.13, H * 0.87, (track[i * 2 + 1] - TOP) / PH); };
+    ctx.strokeStyle = inkNow(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (var pass = 0; pass < 2; pass++) {
+      ctx.globalAlpha = pass ? 0.16 : 0.5;
+      ctx.lineWidth = (pass ? 9 : 3.4) * U;
+      ctx.beginPath();
+      for (var i = 0; i < upto; i++) { if (i === 0) ctx.moveTo(mx(i), my(i)); else ctx.lineTo(mx(i), my(i)); }
+      ctx.stroke();
+    }
+    if (prog >= 1) {
+      var sxp = mx(n - 1) + 18 * U, syp = clamp(my(n - 1), H * 0.14, H * 0.86), s = 27 * U, a = ease((deadT - 2.0) / 0.25);
+      ctx.globalAlpha = 0.92 * a; ctx.fillStyle = RED;
+      ctx.fillRect(sxp - s / 2, syp - s / 2, s, s);
+      ctx.fillStyle = PAPER; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = Math.round(s * 0.74) + 'px "Yuji Boku", serif';
+      ctx.fillText('竜', sxp, syp + s * 0.04);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    var i;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.drawImage(paper, 0, 0, W, H);
+    if (SHOW >= 0) {                                   // muotokuva: pelkkä lohikäärme isona
+      var bl = bodyLen(), Z = clamp(W * 0.74 / (bl + 70 * U * STAGES[D.stage].head), 1, 3.4);
+      ctx.save();
+      ctx.translate(W / 2, H / 2); ctx.scale(Z, Z); ctx.translate(-(D.x - bl * 0.4), -(TOP + PH * 0.45));
+      drawDragon(1);
+      for (i = 0; i < drops.length; i++) { ctx.globalAlpha = clamp(drops[i].life * 2.2, 0, 0.9); ctx.fillStyle = drops[i].col; ctx.beginPath(); ctx.arc(drops[i].x, drops[i].y, drops[i].r, 0, 7); ctx.fill(); }
+      ctx.restore();
+      ctx.drawImage(frameCv, 0, 0, W, H);
+      var ss = 30 * U, sxx = W - M - 22 * U - ss, syy = H - M - 22 * U - ss;   // punainen leima
+      ctx.fillStyle = 'rgba(215,54,43,0.9)'; ctx.fillRect(sxx, syy, ss, ss);
+      ctx.fillStyle = PAPER; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = Math.round(ss * 0.74) + 'px "Yuji Boku", serif';
+      ctx.fillText('竜', sxx + ss / 2, syy + ss * 0.54);
+      return;
+    }
+    for (i = 0; i < strips.length; i++) {
+      var off = ((camX * strips[i].par) % SW + SW) % SW;
+      ctx.drawImage(strips[i].cv, -off, 0, SW, H);
+      ctx.drawImage(strips[i].cv, SW - off, 0, SW, H);
+    }
+    var shx = shake > 0.3 ? rand(-shake, shake) : 0, shy = shake > 0.3 ? rand(-shake, shake) : 0;
+
+    // tumma kerros: maa, kivet, tahrat, lohikäärme
+    ctx.save();
+    ctx.translate(shx, shy);
+    drawGround();
+    ctx.translate(-camX, 0);
+    for (i = 0; i < rocks.length; i++) drawRock(rocks[i]);
+    for (i = 0; i < blots.length; i++) drawBlot(blots[i]);
+    if (D) drawDragon(state === 'dead' ? Math.max(0.3, 1 - deadT * 0.9) : 1);
+    ctx.restore();
+    ctx.drawImage(frameCv, 0, 0, W, H);
+
+    // yö: koko maalaus kääntyy, valkoinen muste mustalla paperilla
+    if (nightAmt > 0) {
+      ctx.globalCompositeOperation = 'difference';
+      ctx.globalAlpha = nightAmt; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = PAPER;
+      for (i = 0; i < stars.length; i++) {
+        ctx.globalAlpha = nightAmt * (0.35 + 0.45 * hash(i + Math.floor(time * 1.5 + i)));
+        ctx.beginPath(); ctx.arc(M + stars[i][0] * (W - 2 * M), M + stars[i][1] * H, stars[i][2] * U, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // kirkas kerros: helmet, roiskeet, luvut
+    var ink = inkNow();
+    ctx.save();
+    ctx.translate(shx, shy);
+    if (stormT > 0) {                                  // myrskyn vauhtiviivat
+      ctx.strokeStyle = RED; ctx.lineCap = 'round';
+      for (i = 0; i < 12; i++) {
+        var ly = TOP + hash(i * 7.3) * PH, lx = W - ((time * 1100 * U + hash(i) * W * 2) % (W * 1.5));
+        ctx.globalAlpha = 0.12 + 0.2 * hash(i + 3); ctx.lineWidth = (1 + 2 * hash(i + 9)) * U;
+        ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + (80 + 120 * hash(i + 5)) * U, ly); ctx.stroke();
+      }
+      ctx.globalAlpha = 0.8; ctx.lineWidth = 2.2 * U;   // jäljellä oleva aika kehänä pään ympärillä
+      ctx.beginPath(); ctx.arc(HEADX, D.y, 30 * U, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (stormT / STORM_TIME)); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.translate(-camX, 0);
+    for (i = 0; i < rings.length; i++) {
+      var rg = rings[i], k = 1 - rg.life;
+      ctx.globalAlpha = rg.life * 0.5;
+      ctx.strokeStyle = rg.col === 'ink' ? ink : rg.col; ctx.lineWidth = (1 + 3 * rg.life) * U;
+      ctx.beginPath(); ctx.arc(rg.x, rg.y, rg.r + (rg.max - rg.r) * ease(k), 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    for (i = 0; i < pearls.length; i++) drawPearl(pearls[i]);
+    for (i = 0; i < drops.length; i++) {
+      var d = drops[i];
+      ctx.globalAlpha = clamp(d.life * 2.2, 0, 0.9) * (d.col === 'wash' ? 0.5 : 1);
+      ctx.fillStyle = d.col === 'ink' || d.col === 'wash' ? ink : d.col;
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (i = 0; i < floaters.length; i++) {
+      var f = floaters[i];
+      ctx.globalAlpha = clamp(f.life * 1.6, 0, 1);
+      ctx.fillStyle = f.col === 'ink' ? ink : f.col;
+      ctx.font = (f.serif ? '700 ' : '') + Math.round(f.size * (1 + (1 - Math.min(1, f.life)) * 0.15)) + 'px ' + (f.serif ? '"Cormorant Garamond", Georgia, serif' : '"Yuji Boku", Georgia, serif');
+      ctx.fillText(f.txt, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    if (state === 'dead') drawPainting();
+  }
+
+  // ---------- silmukka ----------
+  var last = 0;
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (document.hidden) { last = 0; return; }
+    if (!last) last = ts;
+    var dt = Math.min(0.034, (ts - last) / 1000);
+    last = ts;
+    if (hitstop > 0) { hitstop -= dt; dt *= 0.12; }
+    update(dt);
+    draw();
+  }
+
+  // ---------- ohjaus: paina = nouse, päästä = liidä ----------
+  function press() {
+    if (SHOW >= 0) return;
+    initAudio();
+    if (state === 'title' || (state === 'dead' && deadT > 1.1)) start();
+    if (state === 'play') { holding = true; kick = true; }
+  }
+  function release() { holding = false; }
+  window.addEventListener('pointerdown', function (e) { if (e.target !== $mute) press(); });
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
+  window.addEventListener('blur', release);
+  window.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  function isUp(e) { return e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'Enter'; }
+  window.addEventListener('keydown', function (e) {
+    if (isUp(e)) { if (document.activeElement !== $mute && !e.repeat) press(); e.preventDefault(); }
+    else if (e.key === 'm' || e.key === 'M') toggleMute();
+  });
+  window.addEventListener('keyup', function (e) { if (isUp(e)) release(); });
+
+  function toggleMute() {
+    muted = !muted;
+    store('ryu.muted', muted ? '1' : '0');
+    $mute.textContent = muted ? 'ääni pois' : 'ääni';
+    if (!muted) { initAudio(); pluck(noteFor(3), 0.25, 0.6); }
+  }
+  $mute.addEventListener('click', function () { toggleMute(); $mute.blur(); });
+  $mute.textContent = muted ? 'ääni pois' : 'ääni';
+
+  window.addEventListener('resize', function () { resize(); if (SHOW >= 0) showForm(); else if (state === 'title') attract(); });
+
+  // ---------- käyntiin ----------
+  resize();
+  $bestVal.textContent = best;
+  attract();
+  function showForm() {
+    document.body.dataset.show = '1';
+    resetWorld(clamp(SHOW - 1, 0, STAGES.length - 1));
+    for (var sf = 0; sf < 320; sf++) update(1 / 60);
+  }
+  if (SHOW >= 0) showForm();
+  if (AUTO) {
+    // testausta varten: ?auto=900 lentää itse 900 ruutua · &real = osumat päällä · &stage=6, &storm, &night, &die
+    $title.style.transition = $over.style.transition = 'none';
+    start();
+    var q = location.search, num = function (re) { return parseInt((q.match(re) || [])[1], 10) || 0; };
+    if (/[?&]stage=/.test(q)) { score = num(/stage=(\d+)/) * STAGE_POINTS; D.stage = num(/stage=(\d+)/); D.len = D.lenT = STAGES[D.stage].len * U; }
+    if (/[?&]night/.test(q)) passed = 15;
+    var frames = num(/auto=(\d+)/);
+    for (var f = 0; f < frames && state === 'play'; f++) update(1 / 60);
+    if (/[?&]storm/.test(q) && state === 'play') { startStorm(); for (f = 0; f < 40; f++) update(1 / 60); stormT = 60; showScore(false); }
+    if (/[?&]die/.test(q) && state === 'play') die();
+    if (state === 'dead') for (f = 0; f < 200; f++) update(1 / 60);
+    document.body.dataset.test = 'gates=' + passed + ' score=' + score + ' stage=' + (D.stage + 1) + ' state=' + state;
+    showScore(false);
+  }
+  requestAnimationFrame(frame);
+
+  // esikatselu: lataa sivu uudestaan kun tiedosto muuttuu (vain portissa 8001)
+  if (location.port === '8001') {
+    var seen = null;
+    setInterval(function () {
+      fetch(location.pathname, { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+        var m = r.headers.get('last-modified');
+        if (seen && m && m !== seen && state !== 'play') location.reload();
+        if (m) seen = m;
+      }).catch(function () {});
+    }, 1000);
+  }
+})();
+</script>
+</body>
+</html>
