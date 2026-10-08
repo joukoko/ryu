@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#ece3cf">
-<title>Ryū – the ten forms</title>
+<title>Ryū – your forms</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
   @font-face {
@@ -42,24 +42,77 @@
   figcaption b { font-size: 1.3rem; font-weight: 700; }
   figcaption span { color: #6f6654; font-size: 1.05rem; white-space: nowrap; }
   figcaption small { display: block; font-size: 1rem; color: #6f6654; font-weight: 500; }
+  .locked img { filter: grayscale(1) contrast(1.5) blur(9px); opacity: 0.5; }
+  .locked figcaption b { color: #6f6654; }
+  .far img { filter: grayscale(1) contrast(1.5) blur(16px); opacity: 0.42; }
+  .gap { grid-column: 1 / -1; text-align: center; font-size: 1.8rem; letter-spacing: 1em; margin-right: -1em; color: #6f6654; }
+  #count { color: #d7362b; font-weight: 700; }
+  .heaven { max-width: 1160px; margin: 28px auto 0; }
+  .heaven h2 { margin: 0; font-size: 1.6rem; font-weight: 700; }
+  .heaven p { margin: 6px 0 14px; font-size: 1.15rem; color: #6f6654; }
+  .seals { display: flex; gap: 12px; flex-wrap: wrap; }
+  .seals span { display: flex; align-items: center; justify-content: center; width: 62px; height: 62px; border: 1.5px solid #cfc3a6; color: #cfc3a6; font-size: 1.5rem; font-weight: 700; }
+  .seals .got { background: #d7362b; border-color: #d7362b; color: #f1e9d6; }
+  .seals .got:last-child { background: #c9952c; border-color: #c9952c; }
 </style>
 </head>
 <body>
 <header>
-  <h1>The ten forms<i>.</i></h1>
-  <p>A new form every hundred points. Every picture is from the game. <a href="./">Back to the game</a></p>
+  <h1>Your forms<i>.</i></h1>
+  <p>Each form takes more pearls than the last. Every picture is from the game. <span id="count"></span> <a href="./">Back to the game</a></p>
 </header>
 <main>
   <figure><img src="forms/form-1.png" alt="Koi" width="900" height="460"><figcaption><div><b>1 · Koi</b><small>Red spot on the forehead, tail and fins</small></div><span>0 pts</span></figcaption></figure>
-  <figure><img src="forms/form-2.png" alt="Butterfly koi" width="900" height="460" loading="lazy"><figcaption><div><b>2 · Butterfly koi</b><small>Long flowing fins, red patches, barbels</small></div><span>100 pts</span></figcaption></figure>
-  <figure><img src="forms/form-3.png" alt="Water serpent" width="900" height="460" loading="lazy"><figcaption><div><b>3 · Water serpent</b><small>Long, thin and banded</small></div><span>200 pts</span></figcaption></figure>
-  <figure><img src="forms/form-4.png" alt="Horned serpent" width="900" height="460" loading="lazy"><figcaption><div><b>4 · Horned serpent</b><small>Horns, a red sail down the back, a jaw that opens</small></div><span>300 pts</span></figcaption></figure>
-  <figure><img src="forms/form-5.png" alt="Young dragon" width="900" height="460" loading="lazy"><figcaption><div><b>5 · Young dragon</b><small>Legs, back spikes, a mane</small></div><span>400 pts</span></figcaption></figure>
-  <figure><img src="forms/form-6.png" alt="Dragon" width="900" height="460" loading="lazy"><figcaption><div><b>6 · Dragon</b><small>Red belly and mane, scales, fangs</small></div><span>500 pts</span></figcaption></figure>
-  <figure><img src="forms/form-7.png" alt="Storm dragon" width="900" height="460" loading="lazy"><figcaption><div><b>7 · Storm dragon</b><small>Lightning spikes, electricity round the body, ice-blue eyes</small></div><span>600 pts</span></figcaption></figure>
-  <figure><img src="forms/form-8.png" alt="Mountain dragon" width="900" height="460" loading="lazy"><figcaption><div><b>8 · Mountain dragon</b><small>Stone plates on the back, glowing cracks</small></div><span>700 pts</span></figcaption></figure>
-  <figure><img src="forms/form-9.png" alt="Sky dragon" width="900" height="460" loading="lazy"><figcaption><div><b>9 · Sky dragon</b><small>Gold wings, belly and mane</small></div><span>800 pts</span></figcaption></figure>
-  <figure><img src="forms/form-10.png" alt="Ryūjin" width="900" height="460" loading="lazy"><figcaption><div><b>10 · Ryūjin</b><small>A back of flame, crown horns, a fire pearl</small></div><span>900 pts</span></figcaption></figure>
+  <figure><img src="forms/form-2.png" alt="Butterfly koi" width="900" height="460" loading="lazy"><figcaption><div><b>2 · Butterfly koi</b><small>Long flowing fins, red patches, barbels</small></div><span>40 pts</span></figcaption></figure>
+  <figure><img src="forms/form-3.png" alt="Water serpent" width="900" height="460" loading="lazy"><figcaption><div><b>3 · Water serpent</b><small>Long, thin and banded</small></div><span>120 pts</span></figcaption></figure>
+  <figure><img src="forms/form-4.png" alt="Horned serpent" width="900" height="460" loading="lazy"><figcaption><div><b>4 · Horned serpent</b><small>Horns, a red sail down the back, a jaw that opens</small></div><span>270 pts</span></figcaption></figure>
+  <figure><img src="forms/form-5.png" alt="Young dragon" width="900" height="460" loading="lazy"><figcaption><div><b>5 · Young dragon</b><small>Legs, back spikes, a mane</small></div><span>520 pts</span></figcaption></figure>
+  <figure><img src="forms/form-6.png" alt="Dragon" width="900" height="460" loading="lazy"><figcaption><div><b>6 · Dragon</b><small>Red belly and mane, scales, fangs</small></div><span>920 pts</span></figcaption></figure>
+  <figure><img src="forms/form-7.png" alt="Storm dragon" width="900" height="460" loading="lazy"><figcaption><div><b>7 · Storm dragon</b><small>Lightning spikes, electricity round the body, ice-blue eyes</small></div><span>1470 pts</span></figcaption></figure>
+  <figure><img src="forms/form-8.png" alt="Mountain dragon" width="900" height="460" loading="lazy"><figcaption><div><b>8 · Mountain dragon</b><small>Stone plates on the back, glowing cracks</small></div><span>2170 pts</span></figcaption></figure>
+  <figure><img src="forms/form-9.png" alt="Sky dragon" width="900" height="460" loading="lazy"><figcaption><div><b>9 · Sky dragon</b><small>Gold wings, belly and mane</small></div><span>3070 pts</span></figcaption></figure>
+  <figure><img src="forms/form-10.png" alt="Ryūjin" width="900" height="460" loading="lazy"><figcaption><div><b>10 · Ryūjin</b><small>A back of flame, crown horns, a fire pearl</small></div><span>4170 pts</span></figcaption></figure>
 </main>
+<section class="heaven" id="heaven" hidden>
+  <h2>Heaven</h2>
+  <p id="heavenText"></p>
+  <div class="seals"><span data-at="10">?</span><span data-at="25">?</span><span data-at="50">?</span><span data-at="100">?</span></div>
+</section>
+<script>
+// kokoelma: saavutetut muodot näkyvät, seuraava on usvan takana, ja loput pysyvät salassa
+(function () {
+  var best = 0, figs = document.querySelectorAll('figure');
+  try { best = parseInt(localStorage.getItem('ryu.forms'), 10) || 0; } catch (e) {}
+  for (var i = best + 1; i < figs.length; i++) {
+    figs[i].classList.add('locked');
+    figs[i].querySelector('b').textContent = (i + 1) + ' · ???';
+    figs[i].querySelector('small').textContent = 'Not yet reached';
+    figs[i].querySelector('img').alt = 'A form you have not reached yet';
+    if (i > best + 1) figs[i].hidden = true;
+  }
+  var end = figs.length - 1;                          // vihje viimeisestä muodosta: jotain odottaa kaukana, mutta ei kerrota kuinka kaukana
+  if (best + 1 < end) {
+    var gap = document.createElement('div');
+    gap.className = 'gap'; gap.textContent = '· · ·'; gap.setAttribute('aria-hidden', 'true');
+    figs[end].parentNode.insertBefore(gap, figs[end]);
+    figs[end].hidden = false;
+    figs[end].classList.add('far');
+    figs[end].querySelector('b').textContent = '???';
+    figs[end].querySelector('small').textContent = 'Far beyond. Few will ever see it.';
+    figs[end].querySelector('span').textContent = '';
+  }
+  if (best >= figs.length - 1) {                      // taivas aukeaa vasta Ryūjinille
+    document.getElementById('heaven').hidden = false;
+    var far = 0, seals = document.querySelectorAll('.seals span');
+    try { far = parseInt(localStorage.getItem('ryu.heaven'), 10) || 0; } catch (e) {}
+    document.getElementById('heavenText').textContent = 'Heaven. Your furthest flight: ' + far + (far === 1 ? ' gate' : ' gates') + '. A seal for every milestone you pass.';
+    for (i = 0; i < seals.length; i++) {
+      seals[i].textContent = seals[i].getAttribute('data-at');
+      if (far >= +seals[i].getAttribute('data-at')) seals[i].classList.add('got');
+    }
+  }
+  document.getElementById('count').textContent = Math.min(best + 1, figs.length) + ' collected.';
+})();
+</script>
 </body>
 </html>

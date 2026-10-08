@@ -161,6 +161,27 @@
   .over-stage { font-size: clamp(1.2rem, 4.4vw, 1.6rem); font-weight: 700; }
   .over-best { margin-top: 0.3em; font-size: clamp(1.1rem, 4vw, 1.5rem); color: var(--dim); }
   .over-best.record { color: var(--red); }
+  .share {
+    margin-top: 1.1em;
+    padding: 0.4em 1.1em;
+    border: 1.5px solid var(--red);
+    font: inherit;
+    font-weight: 700;
+    font-size: clamp(1.05rem, 3.8vw, 1.3rem);
+    letter-spacing: 0.08em;
+    color: var(--red);
+    cursor: pointer;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    text-shadow: none;
+  }
+  .screen.on .share.ready { pointer-events: auto; opacity: 1; }
+  .share:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+  .coll { margin-top: 1.5em; font-size: clamp(1rem, 3.6vw, 1.2rem); letter-spacing: 0.06em; color: var(--dim); pointer-events: none; }
+  .coll b { color: var(--ink); }
+  .screen.on .coll { pointer-events: auto; }
 
   @media (prefers-reduced-motion: reduce) { .go { animation: none; } }
 </style>
@@ -183,6 +204,7 @@
   <div class="name">RYŪ<i>.</i></div>
   <div class="hint">Hold to rise. Let go to glide.<br>Collect pearls and grow from koi to dragon.</div>
   <div class="go">Tap to start</div>
+  <a class="coll" href="forms.html">Forms collected <b id="collVal">1</b></a>
 </div>
 
 <div class="screen" id="overScreen">
@@ -190,6 +212,7 @@
   <div class="over-score" id="overScore">0</div>
   <div class="over-stage" id="overStage"></div>
   <div class="over-best" id="overBest">best 0</div>
+  <button class="share" id="share" type="button">Share your flight</button>
   <div class="go">Once more? Tap.</div>
 </div>
 
@@ -207,8 +230,10 @@
   var AUTO = /[?&]auto/.test(location.search), REAL = /[?&]real/.test(location.search);
   var SHOW = /[?&]show=/.test(location.search) ? parseInt(location.search.match(/show=(\d+)/)[1], 10) : -1;   // ?show=7: pelkkä muoto isona
   var WOBBLE = parseInt((location.search.match(/wobble=(\d+)/) || [])[1], 10) || 0;
+  // kokeilu: ?start=6 aloittaa suoraan muodosta 7, &soon juuri ennen seuraavaa muotoa. Ei kerrytä ennätyksiä eikä kokoelmaa.
+  var START = Math.min(9, parseInt((location.search.match(/[?&]start=(\d+)/) || [])[1], 10) || 0), SOON = /[?&]soon/.test(location.search);
 
-  // kymmenen vaihetta, uusi aina sadan pisteen välein
+  // kymmenen vaihetta, jokainen vaatii edellistä enemmän pisteitä
   var STAGES = [
     { n: 'Koi',                len: 62,  r: 1.3,  head: 0.92, face: 'fish', tail: 1, dorsal: 1, pect: 1, dot: 1 },
     { n: 'Butterfly koi',      len: 84,  r: 1.42, head: 1.0,  face: 'fish', tail: 2, veil: 1, dorsal: 1.4, pect: 1.9, dot: 1, patch: 1, barbel: 1 },
@@ -221,7 +246,39 @@
     { n: 'Sky dragon',         len: 238, r: 1.24,  head: 1.4,  face: 'dragon', jaw: 1, horn: 1.5, spine: 1.0, spineStep: 5, legs: 1.15, mane: 1.6, beard: 1.2, whisk: 1.7, belly: 0.85, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.5, bulk: 0.3, wing: 1, gold: 1, glow: 1, eye: GOLD, ember: 0.6 },
     { n: 'Ryūjin',             len: 258, r: 1.4,  head: 1.56, face: 'dragon', jaw: 1, horn: 1.7, crown: 1, spine: 1.5, spineKind: 'flame', spineStep: 4, legs: 1.35, mane: 1.9, beard: 1.5, whisk: 1.8, belly: 0.9, bellyCol: 'gold', scales: 1, fang: 1, tuft: 1.8, bulk: 0.46, gold: 1, glow: 1, pearl: 1, halo: 1, ember: 1.6, stripe: 1 }
   ];
-  var STAGE_POINTS = 100, STORM_TIME = 4, STORM_NEED = 12;
+  var STAGE_AT = [0, 40, 120, 270, 520, 920, 1470, 2170, 3070, 4170];   // pisteet, joilla muoto vaihtuu: välit kasvavat 40:stä 1100:aan
+  var STORM_TIME = 4;
+  function stageFor(s) { var k = 0; while (k < STAGES.length - 1 && s >= STAGE_AT[k + 1]) k++; return k; }
+  // vaikeustaso: muodon numero ja matka seuraavaan; jatkaa kasvuaan Ryūjinin jälkeen
+  function level() {
+    var k = D.stage, last = STAGES.length - 1;
+    if (k >= last) return Math.min(12, last + Math.max(0, score - STAGE_AT[last]) / 600);
+    return k + clamp((score - STAGE_AT[k]) / (STAGE_AT[k + 1] - STAGE_AT[k]), 0, 1);
+  }
+  function speedAt(L) { return (190 + 26 * L) * U; }
+  function stormNeed() { return 16 + 5 * D.stage; }   // myrsky on sitä harvinaisempi, mitä pidemmälle pääsee
+
+  // maailmat: maisema vaihtuu muodon mukana. Esteet pysyvät aina mustana musteena, kaikki muu saa vaihtua.
+  var WORLDS = [
+    { n: 'The pond',          from: 0, hills: 'soft',  amb: 'petal' },
+    { n: 'The open sea',      from: 2, hills: 'wave',  amb: 'bubble', tint: '58,104,138',  ta: 0.2,  halo: '40,84,112', ground: 'sea', gcol: '34,78,104', ga: 0.3 },
+    { n: 'The mountains',     from: 4, hills: 'peak',  amb: 'bird' },
+    { n: 'The storm',         from: 6, hills: 'cloud', amb: 'rain',   tint: '44,50,74',    ta: 0.34, flash: 1 },
+    { n: 'The fire mountain', from: 7, hills: 'crag',  amb: 'ember',  tint: '170,60,24',   ta: 0.2,  halo: '215,54,43', gcol: '120,30,16', ga: 0.32 },
+    { n: 'Above the clouds',  from: 8, hills: 'bank',  amb: 'mote',   tint: '236,170,110', ta: 0.22, halo: '201,149,44', ground: 'cloud', gcol: '255,250,238', ga: 0.7 },
+    { n: 'Heaven',            from: 9, hills: 'bank',  amb: 'mote',   tint: '255,226,150', ta: 0.4,  halo: '201,149,44', ground: 'cloud', gcol: '255,250,238', ga: 0.7, rays: 1 }
+  ];
+  function worldFor(st) { var w = 0; while (w < WORLDS.length - 1 && st >= WORLDS[w + 1].from) w++; return w; }
+  // taustakaistojen muodot: f antaa korkeuden 0..1, u kiertää kaistan yli 0..2π (kertoimet valittu niin, että kaista toistuu saumatta)
+  function bumps(u, s) { return Math.abs(Math.sin(2 * u + s)) * 0.5 + Math.abs(Math.sin(4.5 * u + s * 2.1)) * 0.3 + Math.abs(Math.sin(9.5 * u + s * 0.7)) * 0.2; }
+  var HILLS = {
+    soft:  { col: '40,36,30', amp: 0.7, al: 1, f: function (u, s) { return Math.pow(Math.max(0, (Math.sin(2 * u + s) * 0.5 + Math.sin(5 * u + s * 2.1) * 0.3 + Math.sin(11 * u + s * 0.7) * 0.2) * 0.5 + 0.5), 1.6); } },
+    wave:  { col: '34,78,104', base: [0.8, 0.86, 0.92], amp: 0.3, al: 1.8, deep: 4, f: function (u, s) { return 1 - Math.abs(Math.sin(5.5 * u + s)) * 0.65 - Math.abs(Math.sin(12.5 * u + s * 2.1)) * 0.35; } },
+    peak:  { col: '40,36,30', amp: 1.35, al: 1.2, f: function (u, s) { return Math.pow(1 - Math.abs(Math.sin(1.5 * u + s)), 1.4) * 0.62 + (1 - Math.abs(Math.sin(3.5 * u + s * 2.1))) * 0.26 + (1 - Math.abs(Math.sin(8.5 * u + s * 0.7))) * 0.12; } },
+    cloud: { col: '26,30,48', top: 1, base: [0.04, 0.09, 0.15], amp: 0.75, al: 2.2, f: bumps },
+    crag:  { col: '70,24,14', amp: 1.2, al: 1.6, f: function (u, s) { return Math.pow(1 - Math.abs(Math.sin(2.5 * u + s)), 1.1) * 0.55 + (1 - Math.abs(Math.sin(6.5 * u + s * 2.1))) * 0.25 + (1 - Math.abs(Math.sin(19.5 * u + s * 0.7))) * 0.2; } },
+    bank:  { col: '255,250,238', base: [0.76, 0.84, 0.91], amp: 0.6, al: 5, deep: 2.5, f: bumps }
+  };
 
   var W = 0, H = 0, DPR = 1, U = 1, DS = 4, M = 12;
   var TOP = 0, GROUND = 0, PH = 1, HEADX = 0, SW = 900;
@@ -250,7 +307,15 @@
   for (var si = 0; si < 70; si++) stars.push([Math.random(), Math.random() * 0.62, rand(0.5, 1.5)]);
 
   var $ = function (id) { return document.getElementById(id); };
-  var $score = $('score'), $mult = $('mult'), $bestVal = $('bestVal'), $title = $('titleScreen'), $over = $('overScreen'), $mute = $('mute');
+  var $score = $('score'), $mult = $('mult'), $bestVal = $('bestVal'), $title = $('titleScreen'), $over = $('overScreen'), $mute = $('mute'), $share = $('share');
+  var cardBlob = null;
+  var world = 0, worldFrom = 0, worldFade = 1, stripsOld = null, worldBanner = 0;
+  // taivas: Ryūjinin jälkeen lasketaan läpäistyjä portteja, ja tietyistä määristä saa leiman kokoelmaan
+  var HEAVEN_SEALS = [10, 25, 50, 100], heaven = 0, heavenBest = parseInt(fetchStored('ryu.heaven'), 10) || 0;
+  var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // kokoelma: korkein saavutettu muoto säilyy, vaikka jokainen lento alkaa koina
+  var formsBest = clamp(parseInt(fetchStored('ryu.forms'), 10) || 0, 0, STAGES.length - 1), newForm = false;
+  function sealCol() { return formsBest >= STAGES.length - 1 ? GOLD : RED; }   // Ryūjinin saavuttaneen leima on kultaa
 
   function inkNow() { return nightAmt > 0.5 ? PAPER : INK; }
   function bgNow() { return nightAmt > 0.5 ? NIGHT : PAPER; }
@@ -363,24 +428,30 @@
     }
   }
 
-  function makeStrips() {
-    SW = Math.ceil(Math.max(W * 1.5, 900));
-    var layers = [[0.66, 0.22, 0.05, 1.7, 0.04], [0.76, 0.18, 0.075, 4.3, 0.09], [0.86, 0.14, 0.10, 8.9, 0.18]];
-    strips = layers.map(function (L) {
+  function makeStrips(kind) {
+    // kaistat laitepikseleinä ja vain vuorten korkuisina: piirtyvät 1:1 ilman skaalausta (Firefox hidastui muuten)
+    SW = Math.ceil(Math.max(W * 1.5, 900) * DPR) / DPR;
+    var K = HILLS[kind], bases = K.base || [0.66, 0.76, 0.86], amps = [0.22, 0.18, 0.14], als = [0.05, 0.075, 0.10], seeds = [1.7, 4.3, 8.9], pars = [0.04, 0.09, 0.18];
+    var out = bases.map(function (b, q) {
       var c = document.createElement('canvas');
-      c.width = SW; c.height = Math.ceil(H);
-      var p = c.getContext('2d'), base = H * L[0], amp = H * L[1], s = L[3], k = Math.PI * 2 / SW;
-      p.beginPath(); p.moveTo(0, H);
-      for (var x = 0; x <= SW; x += 6) {
-        var n = Math.sin(k * 2 * x + s) * 0.5 + Math.sin(k * 5 * x + s * 2.1) * 0.3 + Math.sin(k * 11 * x + s * 0.7) * 0.2;
-        p.lineTo(x, base - amp * Math.pow(Math.max(0, n * 0.5 + 0.5), 1.6));
+      var base = H * b, amp = H * amps[q] * K.amp, s = seeds[q], deep = K.deep || 0.9;
+      var y0 = K.top ? 0 : Math.floor((base - amp) * DPR) / DPR, y1 = K.top ? base + amp : Math.min(H, base + amp * deep);
+      c.width = Math.round(SW * DPR); c.height = Math.ceil((y1 - y0) * DPR);
+      var p = c.getContext('2d');
+      p.setTransform(DPR, 0, 0, DPR, 0, -y0 * DPR);
+      p.beginPath(); p.moveTo(0, K.top ? 0 : H);
+      for (var x = 0; x <= SW + 4; x += 4) {
+        var n = K.f(Math.min(x, SW) / SW * Math.PI * 2, s);
+        p.lineTo(Math.min(x, SW), K.top ? base + amp * n : base - amp * n);
       }
-      p.lineTo(SW, H); p.closePath();
-      var mg = p.createLinearGradient(0, base - amp, 0, Math.min(H, base + amp * 0.9));
-      mg.addColorStop(0, 'rgba(40,36,30,' + L[2] + ')'); mg.addColorStop(1, 'rgba(40,36,30,0)');
+      p.lineTo(SW, K.top ? 0 : H); p.closePath();
+      var mg = K.top ? p.createLinearGradient(0, base + amp, 0, Math.max(0, base - amp * deep)) : p.createLinearGradient(0, base - amp, 0, y1);
+      mg.addColorStop(0, 'rgba(' + K.col + ',' + Math.min(0.9, als[q] * K.al) + ')'); mg.addColorStop(1, 'rgba(' + K.col + ',0)');
       p.fillStyle = mg; p.fill();
-      return { cv: c, par: L[4] };
+      return { cv: c, par: pars[q], y: y0, h: c.height / DPR };
     });
+    out.kind = kind;
+    return out;
   }
 
   function resize() {
@@ -392,7 +463,14 @@
     TOP = M + 16 * U; GROUND = H - M - 30 * U; PH = GROUND - TOP;
     HEADX = Math.max(W * 0.3, 96 * U);
     makePaper();
-    makeStrips();
+    strips = makeStrips(WORLDS[world].hills); stripsOld = null;
+  }
+  // maailman vaihto: uusi maisema häivytetään vanhan päälle
+  function setWorld(w, instant) {
+    worldFrom = world; world = w;
+    if (strips.kind !== WORLDS[w].hills) { stripsOld = instant ? null : strips; strips = makeStrips(WORLDS[w].hills); }
+    else if (instant) stripsOld = null;
+    worldFade = instant || worldFrom === w ? 1 : 0;
   }
 
   // ---------- lohikäärme ----------
@@ -467,9 +545,9 @@
       }
       var n = gateCount++, roll = Math.random();
       var kind = n < 2 ? 'pair' : roll < 0.36 ? 'double' : roll < 0.6 ? 'edge' : 'pair';
-      var gap = PH * Math.max(0.2, 0.3 - n * 0.004);
+      var L = level(), gap = PH * Math.max(0.13, 0.26 - L * 0.02);
       // paljonko ehtii nousta tai laskea edellisestä portista: yhtään porttia ei tehdä mahdottomaksi
-      var vxN = (170 + Math.min(n, 50) * 2.4) * U, reach = prevX === null ? PH : 0.44 * PH * ((nextX - prevX) / vxN) * 0.72;
+      var vxN = speedAt(L), reach = prevX === null ? PH : 0.44 * PH * ((nextX - prevX) / vxN) * 0.72;
       var lo = TOP + gap / 2 + PH * 0.06, hi = GROUND - gap / 2 - PH * 0.06;
       var seg = ++segId, gy, altGy = null, x = nextX;
       segs[seg] = { a: 0, b: 0 };
@@ -498,7 +576,7 @@
       } else {
         if (kind === 'pair') {
           var dlt = Math.min(reach, PH * 0.42);
-          gy = prevX === null ? clamp(D.y, lo, hi) : clamp(prevGy + (Math.random() < 0.5 ? -1 : 1) * rand(0.35, 1) * dlt, lo, hi);
+          gy = prevX === null ? clamp(D.y, lo, hi) : clamp(prevGy + (Math.random() < 0.5 ? -1 : 1) * rand(0.35 + Math.min(L, 9) * 0.03, 1) * dlt, lo, hi);
         }
         rocks.push(makeSpire(x + rand(-18, 18) * U, gy - gap / 2, TOP - 60 * U));
         rocks.push(makeSpire(x + rand(-18, 18) * U, gy + gap / 2, H + 40 * U));
@@ -516,7 +594,7 @@
       else if (n > 2 && Math.random() < 0.15) addPearl(x, gy + (Math.random() < 0.5 ? -1 : 1) * gap * 0.3, true, seg, 'a');
       else addPearl(x, gy, false, seg, 'a');
 
-      if (n >= 5 && kind === 'pair' && prevX !== null && !prevDouble && Math.random() < 0.55) {
+      if (n >= 5 && kind === 'pair' && prevX !== null && !prevDouble && Math.random() < 0.4 + Math.min(L, 9) * 0.05) {
         var my = (y0 + gy) / 2, side = my > TOP + PH / 2 ? -1 : 1;
         makeBlot((prevX + x) / 2, clamp(my + side * PH * rand(0.24, 0.32), TOP + 30 * U, GROUND - 40 * U));
       }
@@ -544,6 +622,8 @@
     document.body.dataset.state = s;
     $title.classList.toggle('on', s === 'title');
     $over.classList.remove('on');
+    $share.classList.remove('ready');
+    $share.textContent = 'Share your flight';
   }
   function showScore(pop) {
     $score.textContent = score;
@@ -553,16 +633,40 @@
     }
     if (stormT > 0) $mult.textContent = 'STORM';
     else {                                           // putki kohti myrskyä, piste per helmi
-      var pips = '';
-      for (var k = 0; k < STORM_NEED; k++) pips += k < streak ? '<i class="f"></i>' : '<i></i>';
+      var pips = '', fill = Math.floor(streak * 12 / stormNeed());
+      for (var k = 0; k < 12; k++) pips += k < fill ? '<i class="f"></i>' : '<i></i>';
       $mult.innerHTML = pips;
     }
     $mult.classList.toggle('storm', stormT > 0);
     $mult.classList.toggle('on', stormT > 0 || streak >= 3);
     $bestVal.textContent = Math.max(best, score);
-    var last = D.stage >= STAGES.length - 1;
-    $('evoName').textContent = STAGES[D.stage].n + ' · ' + (D.stage + 1) + ' / ' + STAGES.length;
-    $('evoBar').style.width = (last ? 100 : (score % STAGE_POINTS) / STAGE_POINTS * 100) + '%';
+    var bar;
+    if (D.stage >= STAGES.length - 1) {              // taivaassa palkki näyttää matkan seuraavaan leimaan
+      var q = 0;
+      while (q < HEAVEN_SEALS.length && heaven >= HEAVEN_SEALS[q]) q++;
+      var lo = q ? HEAVEN_SEALS[q - 1] : 0;
+      bar = q < HEAVEN_SEALS.length ? (heaven - lo) / (HEAVEN_SEALS[q] - lo) : 1;
+    } else bar = (score - STAGE_AT[D.stage]) / (STAGE_AT[D.stage + 1] - STAGE_AT[D.stage]);
+    $('evoName').textContent = runLabel(true);
+    $('evoBar').style.width = bar * 100 + '%';
+  }
+  function runLabel(short) {
+    var n = STAGES[D.stage].n;                       // muotojen määrää ei kerrota: pelaaja ei tiedä, mitä on edessä
+    if (D.stage < STAGES.length - 1) return short ? n : n + ' · form ' + (D.stage + 1);
+    return short ? n + ' · heaven ' + heaven : n + ' · ' + heaven + (heaven === 1 ? ' gate' : ' gates') + ' into heaven';
+  }
+  function heavenGate() {
+    heaven++;
+    var fresh = !AUTO && !START && heaven > heavenBest;
+    if (fresh) { heavenBest = heaven; store('ryu.heaven', String(heaven)); }
+    if (HEAVEN_SEALS.indexOf(heaven) >= 0) {
+      banner('Heaven ' + heaven, fresh ? 'seal earned' : '', 2000);
+      rings.push({ x: D.x, y: D.y, r: 10 * U, max: 200 * U, life: 1, col: GOLD });
+      splash(D.x, D.y, 30, GOLD, 1.4);
+      for (var i = 0; i < 3; i++) pluck(noteFor(5 + i * 2), 0.26, 1.2, i * 0.09);
+      buzz([20, 30, 60]);
+    }
+    showScore(false);
   }
 
   // ---------- pelin kulku ----------
@@ -574,10 +678,12 @@
     prevX = null; prevGy = D.y; prevDouble = false;
     stormT = 0; grace = 0; nightAmt = 0; trackAcc = 0;
     document.body.classList.remove('night');
+    setWorld(worldFor(stage), true); heaven = 0; worldBanner = 0;
   }
   function start() {
-    resetWorld(0);
-    score = 0; passed = 0; streak = 0; shake = 0; hitstop = 0;
+    resetWorld(START);
+    score = SOON && START < STAGES.length - 1 ? STAGE_AT[START + 1] - 15 : STAGE_AT[START];
+    passed = 0; streak = 0; shake = 0; hitstop = 0; newForm = false;
     setState('play');
     nextX = D.x + Math.max(W * 0.75, 430 * U);
     D.vy = -PH * 0.18;
@@ -593,7 +699,7 @@
 
   function addScore(n) {
     score += n;
-    var st = Math.min(STAGES.length - 1, Math.floor(score / STAGE_POINTS));
+    var st = stageFor(score);
     if (st > D.stage) evolve(st);
   }
   function evolve(st) {
@@ -605,7 +711,18 @@
     rings.push({ x: D.x, y: D.y, r: 10 * U, max: 150 * U, life: 1, col: GOLD });
     rings.push({ x: D.x, y: D.y, r: 6 * U, max: 90 * U, life: 1, col: RED });
     splash(D.x, D.y, 30, GOLD, 1.3);
-    banner(STAGES[st].n, (st + 1) + ' / ' + STAGES.length, 2200);
+    var fresh = !AUTO && !START && st > formsBest;
+    if (fresh) { formsBest = st; store('ryu.forms', String(st)); newForm = true; }
+    var god = st >= STAGES.length - 1;
+    banner(STAGES[st].n, god ? 'the dragon god' : fresh ? 'new form collected' : 'form ' + (st + 1), god ? 3200 : 2200);
+    if (god) {                                       // Ryūjin: hetki saa tuntua
+      grace = Math.max(grace, 2.2); shake = Math.max(shake, 14 * U);
+      rings.push({ x: D.x, y: D.y, r: 14 * U, max: 320 * U, life: 1, col: GOLD });
+      splash(D.x, D.y, 50, GOLD, 1.8, true);
+      drum(0.9, 1.6);
+    }
+    var w = worldFor(st);
+    if (w !== world) { setWorld(w, false); worldBanner = time + (god ? 3.4 : 2.5); }
     for (var i = 0; i < 4; i++) pluck(noteFor(3 + i * 2), 0.26, 1.1, i * 0.085);
     buzz([20, 30, 60]);
   }
@@ -658,7 +775,7 @@
     if (p.gold) { pluck(noteFor(streak + 2), 0.3, 0.9); pluck(noteFor(streak + 4), 0.26, 1.0, 0.07); pluck(noteFor(streak + 7), 0.24, 1.3, 0.14); }
     else pluck(noteFor(Math.min(streak, 14)), 0.32, 0.8);
     addScore(gain);
-    if (stormT <= 0 && streak >= STORM_NEED) startStorm();
+    if (stormT <= 0 && streak >= stormNeed()) startStorm();
     showScore(true);
   }
 
@@ -674,14 +791,74 @@
     buzz([40, 40, 90]);
     $mult.classList.remove('on');
     track.push(D.x, D.y);
-    var record = score > best;
+    var record = !START && score > best;
     if (record) { best = score; store('ryu.fly2.best', String(best)); }
     $('overScore').textContent = score;
-    $('overStage').textContent = STAGES[D.stage].n + ' · ' + (D.stage + 1) + ' / ' + STAGES.length;
+    $('overStage').textContent = runLabel(false);
     var ob = $('overBest');
-    ob.textContent = record && score > 0 ? 'New record!' : 'best ' + best;
-    ob.classList.toggle('record', record && score > 0);
+    var news = [];
+    if (newForm) news.push('New form collected');
+    if (record && score > 0) news.push('New record!');
+    ob.textContent = news.length ? news.join(' · ') : 'best ' + best;
+    ob.classList.toggle('record', news.length > 0);
     $bestVal.textContent = best;
+    cardBlob = null;                                 // kuva valmiiksi, jotta jako onnistuu suoraan painalluksesta
+    makeCard().toBlob(function (b) { cardBlob = b; }, 'image/png');
+  }
+
+  // jaettava kuva: lento yhtenä vetona, leima ja pisteet neliössä
+  function makeCard() {
+    var S = 1080, c = document.createElement('canvas'), p, i;
+    c.width = c.height = S;
+    p = c.getContext('2d');
+    var side = Math.min(paper.width, paper.height);
+    p.drawImage(paper, (paper.width - side) / 2, (paper.height - side) / 2, side, side, 0, 0, S, S);
+    p.strokeStyle = 'rgba(23,20,15,0.6)'; p.lineWidth = 4; p.strokeRect(34, 34, S - 68, S - 68);
+    p.strokeStyle = 'rgba(23,20,15,0.22)'; p.lineWidth = 9; p.strokeRect(36, 36, S - 72, S - 72);
+    var n = track.length / 2;
+    if (n >= 3) {
+      var x0 = track[0], span = Math.max(1, track[track.length - 2] - x0);
+      var mx = function (k) { return lerp(120, S - 190, (track[k * 2] - x0) / span); };
+      var my = function (k) { return lerp(150, 610, (track[k * 2 + 1] - TOP) / PH); };
+      p.strokeStyle = INK; p.lineCap = 'round'; p.lineJoin = 'round';
+      for (var pass = 0; pass < 2; pass++) {
+        p.globalAlpha = pass ? 0.16 : 0.5;
+        p.lineWidth = pass ? 24 : 9;
+        p.beginPath();
+        for (i = 0; i < n; i++) { if (i === 0) p.moveTo(mx(i), my(i)); else p.lineTo(mx(i), my(i)); }
+        p.stroke();
+      }
+      var s = 72, sx = mx(n - 1) + 50, sy = clamp(my(n - 1), 150, 610);
+      p.globalAlpha = 0.92; p.fillStyle = sealCol();
+      p.fillRect(sx - s / 2, sy - s / 2, s, s);
+      p.fillStyle = PAPER; p.textAlign = 'center'; p.textBaseline = 'middle';
+      p.font = Math.round(s * 0.74) + 'px "Yuji Boku", serif';
+      p.fillText('竜', sx, sy + s * 0.04);
+    }
+    p.globalAlpha = 1; p.textAlign = 'center'; p.textBaseline = 'alphabetic';
+    p.fillStyle = INK;
+    p.font = '230px "Yuji Boku", Georgia, serif';
+    p.fillText(score, S / 2, 860);
+    p.font = '700 50px "Cormorant Garamond", Georgia, serif';
+    p.fillText(runLabel(false), S / 2, 935);
+    p.fillStyle = '#6f6654';
+    p.font = '500 40px "Cormorant Garamond", Georgia, serif';
+    p.fillText('ryu.fi', S / 2, 1003);
+    return c;
+  }
+  function shareFlight() {
+    if (!cardBlob) return;
+    var file = null;
+    try { file = new File([cardBlob], 'ryu-flight.png', { type: 'image/png' }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], text: 'I flew to ' + STAGES[D.stage].n + ' with ' + score + ' points in Ryū. ryu.fi' }).catch(function () {});
+      return;
+    }
+    var a = document.createElement('a'), url = URL.createObjectURL(cardBlob);   // ei jakovalikkoa: tallenna kuva
+    a.href = url; a.download = 'ryu-flight.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    $share.textContent = 'Saved';
   }
 
   // itse lentävä lohikäärme: nimiruutu ja testaus
@@ -703,6 +880,7 @@
     if (state === 'dead') {
       deadT += dt;
       if (deadT > 0.75) $over.classList.add('on');
+      if (deadT > 2.3 && cardBlob) $share.classList.add('ready');
     } else {
       var ai = state === 'title' || AUTO;
       var hold = ai ? aiHold() : holding;
@@ -714,7 +892,7 @@
       D.vy += (hold ? -2.5 : 1.5) * PH * dt;
       D.vy = clamp(D.vy, -PH * 0.54, PH * 0.44);
       if (SHOW >= 0) { D.vy = Math.cos(time * 3.6) * 3.6 * 15 * U; D.gulp = Math.max(D.gulp, Math.max(0, Math.sin(time * 1.3) - 0.55) * 2); }
-      D.vx = (170 + Math.min(passed, 50) * 2.4) * U * (stormT > 0 ? 1.3 : 1);
+      D.vx = speedAt(level()) * (stormT > 0 ? 1.3 : 1);
       if (state === 'title') D.vx = 120 * U;
 
       var sx = D.vx * dt, sy = D.vy * dt;
@@ -771,6 +949,7 @@
         for (i = 0; i < gates.length; i++) {
           if (!gates[i].done && gates[i].x < D.x - 24 * U) {
             gates[i].done = true; passed++;
+            if (D.stage >= STAGES.length - 1) heavenGate();
             pluck(146.83, 0.12, 0.35);
           }
         }
@@ -823,6 +1002,8 @@
     for (i = floaters.length - 1; i >= 0; i--) { floaters[i].life -= dt * 1.1; floaters[i].y -= 34 * U * dt; if (floaters[i].life <= 0) floaters.splice(i, 1); }
     shake *= Math.pow(0.0015, dt);
     if (stormT > 0) shake = Math.max(shake, 1.6 * U);
+    if (worldFade < 1) { worldFade = Math.min(1, worldFade + dt * 0.6); if (worldFade >= 1) stripsOld = null; }
+    if (worldBanner && time > worldBanner) { if (state === 'play') banner(WORLDS[world].n, '', 1800); worldBanner = 0; }
   }
 
   // ---------- piirto ----------
@@ -1290,7 +1471,8 @@
     ctx.closePath();
   }
   function drawRock(o) {
-    ctx.fillStyle = 'rgba(40,36,30,0.10)';             // laimea pesu ympärillä
+    var halo = WORLDS[world].halo;                     // laimea pesu ympärillä, maailman värissä
+    ctx.fillStyle = halo ? 'rgba(' + halo + ',0.2)' : 'rgba(40,36,30,0.10)';
     rockPath(o, 1.55); ctx.fill();
     ctx.fillStyle = 'rgba(23,20,15,0.93)';
     rockPath(o, 1); ctx.fill();
@@ -1339,16 +1521,90 @@
     ctx.fill();
   }
 
-  function groundY(x, ph) { return GROUND + Math.sin((x / U + ph) * 0.02) * 3 * U + Math.sin((x / U + ph) * 0.0071 + 1.3) * 4 * U; }
+  // maailman väri paperin päällä, taivaan säteet ja myrskyn salama
+  function drawTint() {
+    var wf = ease(worldFade), Wn = WORLDS[world], Wo = WORLDS[worldFrom], i;
+    if (wf < 1 && Wo.tint) { ctx.globalAlpha = Wo.ta * (1 - wf); ctx.fillStyle = 'rgb(' + Wo.tint + ')'; ctx.fillRect(0, 0, W, H); }
+    if (Wn.tint) { ctx.globalAlpha = Wn.ta * wf; ctx.fillStyle = 'rgb(' + Wn.tint + ')'; ctx.fillRect(0, 0, W, H); }
+    if (Wn.rays) {
+      var sx = W * 0.78, sy = H * 0.2, far = Math.max(W, H) * 1.4;
+      ctx.globalAlpha = 0.13 * wf; ctx.fillStyle = '#fff6cf';
+      ctx.beginPath();
+      for (i = 0; i < 12; i++) {
+        var a = i / 12 * Math.PI * 2 + time * 0.05;
+        ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * far, sy + Math.sin(a) * far); ctx.lineTo(sx + Math.cos(a + 0.13) * far, sy + Math.sin(a + 0.13) * far);
+        ctx.closePath();
+      }
+      ctx.fill();
+    }
+    if (Wn.flash && !REDUCED) {
+      var ft = time % 6.1;
+      if (ft < 0.22) { ctx.globalAlpha = 0.2 * (1 - ft / 0.22) * wf; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); }
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawStrips(set, a) {
+    ctx.globalAlpha = a;
+    for (var i = 0; i < set.length; i++) {
+      var st = set[i], off = Math.round((((camX * st.par) % SW + SW) % SW) * DPR) / DPR;
+      ctx.drawImage(st.cv, -off, st.y, SW, st.h);
+      if (SW - off < W) ctx.drawImage(st.cv, SW - off, st.y, SW, st.h);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // ilmassa leijuvat pienet asiat: terälehdet, kuplat, linnut, sade, kipinät, kultahiput
+  function wrap(v, m) { return ((v % m) + m) % m; }
+  function drawAmbient(kind, a) {
+    if (!kind || a <= 0) return;
+    var ink = inkNow(), span = W + 80 * U, i, x, y, h1, h2, h3;
+    ctx.lineCap = 'round';
+    for (i = 0; i < (kind === 'bird' ? 6 : 26); i++) {
+      h1 = hash(i * 3.71 + 1); h2 = hash(i * 9.13 + 5); h3 = hash(i * 5.37 + 2);
+      if (kind === 'petal') {
+        x = wrap(h1 * span - camX * 0.3 - time * 14 * U, span) - 40 * U; y = wrap(h2 * H + time * (10 + 14 * h3) * U, H);
+        ctx.globalAlpha = a * 0.4; ctx.fillStyle = RED;
+        ctx.beginPath(); ctx.ellipse(x, y, 3.2 * U, 1.6 * U, time * (0.6 + h3) + i, 0, 7); ctx.fill();
+      } else if (kind === 'bubble') {
+        x = wrap(h1 * span - camX * 0.3, span) - 40 * U + Math.sin(time * 1.3 + i) * 6 * U; y = H - wrap(h2 * H + time * (18 + 26 * h3) * U, H);
+        ctx.globalAlpha = a * 0.5; ctx.strokeStyle = 'rgb(34,78,104)'; ctx.lineWidth = U;
+        ctx.beginPath(); ctx.arc(x, y, (1.5 + 3 * h3) * U, 0, 7); ctx.stroke();
+      } else if (kind === 'bird') {
+        x = wrap(h1 * span - camX * 0.12 + time * 8 * U * (0.5 + h3), span) - 40 * U; y = TOP + (0.06 + 0.3 * h2) * PH + Math.sin(time * 0.7 + i) * 6 * U;
+        var fl = Math.sin(time * 5 + i * 2) * 2.2 * U, s = (3.5 + 3 * h3) * U;
+        ctx.globalAlpha = a * 0.5; ctx.strokeStyle = ink; ctx.lineWidth = 1.2 * U;
+        ctx.beginPath(); ctx.moveTo(x - s, y - fl - s * 0.3); ctx.quadraticCurveTo(x - s * 0.4, y - s * 0.5, x, y); ctx.quadraticCurveTo(x + s * 0.4, y - s * 0.5, x + s, y - fl - s * 0.3); ctx.stroke();
+      } else if (kind === 'rain') {
+        x = wrap(h1 * span - camX * 0.5 - time * 260 * U * (0.7 + 0.6 * h3), span) - 40 * U; y = wrap(h2 * H + time * 620 * U * (0.7 + 0.6 * h3), H);
+        ctx.globalAlpha = a * 0.3; ctx.strokeStyle = ink; ctx.lineWidth = U;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 7 * U, y + 17 * U); ctx.stroke();
+      } else if (kind === 'ember') {
+        x = wrap(h1 * span - camX * 0.4, span) - 40 * U + Math.sin(time * 2 + i) * 8 * U; y = H - wrap(h2 * H + time * (30 + 40 * h3) * U, H);
+        ctx.globalAlpha = a * (0.35 + 0.4 * hash(i + Math.floor(time * 6))); ctx.fillStyle = i % 3 ? RED : GOLD;
+        ctx.beginPath(); ctx.arc(x, y, (1 + 1.6 * h3) * U, 0, 7); ctx.fill();
+      } else {
+        x = wrap(h1 * span - camX * 0.2 - time * 6 * U, span) - 40 * U; y = wrap(h2 * H - time * (4 + 8 * h3) * U, H);
+        ctx.globalAlpha = a * (0.25 + 0.5 * Math.abs(Math.sin(time * (1 + h3) + i))); ctx.fillStyle = GOLD;
+        ctx.beginPath(); ctx.arc(x, y, (1 + 1.8 * h3) * U, 0, 7); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function groundY(x, ph, g) {
+    var y = GROUND + Math.sin((x / U + ph) * 0.02) * 3 * U + Math.sin((x / U + ph) * 0.0071 + 1.3) * 4 * U;
+    if (g === 'sea') y += Math.sin((x / U + ph) * 0.09 - time * 2.4) * 2.5 * U;      // aallokko
+    else if (g === 'cloud') y -= Math.abs(Math.sin((x / U + ph) * 0.028)) * 9 * U;    // pilven kumpuileva reuna
+    return y;
+  }
   function drawGround() {
-    var x, ph = camX / U;
+    var x, ph = camX / U, Wn = WORLDS[world], g = Wn.ground;
     ctx.beginPath(); ctx.moveTo(0, H);
-    for (x = 0; x <= W + 10; x += 10) ctx.lineTo(x, groundY(x, ph));
+    for (x = 0; x <= W + 10; x += 10) ctx.lineTo(x, groundY(x, ph, g));
     ctx.lineTo(W, H); ctx.closePath();
-    ctx.fillStyle = 'rgba(40,36,30,0.2)'; ctx.fill();
+    ctx.fillStyle = 'rgba(' + (Wn.gcol || '40,36,30') + ',' + (Wn.ga || 0.2) + ')'; ctx.fill();
     ctx.beginPath();
-    for (x = 0; x <= W + 10; x += 10) { if (x === 0) ctx.moveTo(x, groundY(x, ph)); else ctx.lineTo(x, groundY(x, ph)); }
-    ctx.strokeStyle = 'rgba(23,20,15,0.6)'; ctx.lineWidth = 1.8 * U; ctx.stroke();
+    for (x = 0; x <= W + 10; x += 10) { if (x === 0) ctx.moveTo(x, groundY(x, ph, g)); else ctx.lineTo(x, groundY(x, ph, g)); }
+    ctx.strokeStyle = g === 'cloud' ? 'rgba(255,255,255,0.8)' : 'rgba(23,20,15,0.6)'; ctx.lineWidth = 1.8 * U; ctx.stroke();
   }
 
   // lentosi yhtenä siveltimenvetona, punainen leima perässä
@@ -1372,7 +1628,7 @@
     }
     if (prog >= 1) {
       var sxp = mx(n - 1) + 18 * U, syp = clamp(my(n - 1), H * 0.14, H * 0.86), s = 27 * U, a = ease((deadT - 2.0) / 0.25);
-      ctx.globalAlpha = 0.92 * a; ctx.fillStyle = RED;
+      ctx.globalAlpha = 0.92 * a; ctx.fillStyle = sealCol();
       ctx.fillRect(sxp - s / 2, syp - s / 2, s, s);
       ctx.fillStyle = PAPER; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = Math.round(s * 0.74) + 'px "Yuji Boku", serif';
@@ -1400,11 +1656,9 @@
       ctx.fillText('竜', sxx + ss / 2, syy + ss * 0.54);
       return;
     }
-    for (i = 0; i < strips.length; i++) {
-      var off = ((camX * strips[i].par) % SW + SW) % SW;
-      ctx.drawImage(strips[i].cv, -off, 0, SW, H);
-      ctx.drawImage(strips[i].cv, SW - off, 0, SW, H);
-    }
+    drawTint();
+    if (stripsOld) drawStrips(stripsOld, 1 - ease(worldFade));
+    drawStrips(strips, stripsOld ? ease(worldFade) : 1);
     var shx = shake > 0.3 ? rand(-shake, shake) : 0, shy = shake > 0.3 ? rand(-shake, shake) : 0;
 
     // tumma kerros: maa, kivet, tahrat, lohikäärme
@@ -1435,6 +1689,8 @@
     var ink = inkNow();
     ctx.save();
     ctx.translate(shx, shy);
+    if (worldFade < 1) drawAmbient(WORLDS[worldFrom].amb, 1 - ease(worldFade));
+    drawAmbient(WORLDS[world].amb, ease(worldFade));
     if (stormT > 0) {                                  // myrskyn vauhtiviivat
       ctx.strokeStyle = RED; ctx.lineCap = 'round';
       for (i = 0; i < 12; i++) {
@@ -1496,7 +1752,7 @@
     if (state === 'play') { holding = true; kick = true; }
   }
   function release() { holding = false; }
-  window.addEventListener('pointerdown', function (e) { if (e.target !== $mute) press(); });
+  window.addEventListener('pointerdown', function (e) { if (!(e.target.closest && e.target.closest('button, a'))) press(); });
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
   window.addEventListener('blur', release);
@@ -1504,6 +1760,7 @@
 
   function isUp(e) { return e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'Enter'; }
   window.addEventListener('keydown', function (e) {
+    if (isUp(e) && document.activeElement && document.activeElement.closest('.share, .coll')) return;
     if (isUp(e)) { if (document.activeElement !== $mute && !e.repeat) press(); e.preventDefault(); }
     else if (e.key === 'm' || e.key === 'M') toggleMute();
   });
@@ -1517,12 +1774,14 @@
   }
   $mute.addEventListener('click', function () { toggleMute(); $mute.blur(); });
   $mute.textContent = muted ? 'sound off' : 'sound';
+  $share.addEventListener('click', function () { shareFlight(); $share.blur(); });
 
   window.addEventListener('resize', function () { resize(); if (SHOW >= 0) showForm(); else if (state === 'title') attract(); });
 
   // ---------- käyntiin ----------
   resize();
   $bestVal.textContent = best;
+  $('collVal').textContent = (formsBest + 1) + (heavenBest ? ' · heaven ' + heavenBest : '');
   attract();
   function showForm() {
     document.body.dataset.show = '1';
@@ -1535,13 +1794,16 @@
     $title.style.transition = $over.style.transition = 'none';
     start();
     var q = location.search, num = function (re) { return parseInt((q.match(re) || [])[1], 10) || 0; };
-    if (/[?&]stage=/.test(q)) { score = num(/stage=(\d+)/) * STAGE_POINTS; D.stage = num(/stage=(\d+)/); D.len = D.lenT = STAGES[D.stage].len * U; }
+    if (/[?&]stage=/.test(q)) { D.stage = clamp(num(/stage=(\d+)/), 0, STAGES.length - 1); score = STAGE_AT[D.stage]; D.len = D.lenT = STAGES[D.stage].len * U; setWorld(worldFor(D.stage), true); }
     if (/[?&]night/.test(q)) passed = 15;
     var frames = num(/auto=(\d+)/);
     for (var f = 0; f < frames && state === 'play'; f++) update(1 / 60);
     if (/[?&]storm/.test(q) && state === 'play') { startStorm(); for (f = 0; f < 40; f++) update(1 / 60); stormT = 60; showScore(false); }
     if (/[?&]die/.test(q) && state === 'play') die();
     if (state === 'dead') for (f = 0; f < 200; f++) update(1 / 60);
+    if (/[?&]card/.test(q) && state === 'dead') {     // &card: näytä jaettava kuva
+      Promise.all([document.fonts.load('230px "Yuji Boku"', '0竜'), document.fonts.load('700 50px "Cormorant Garamond"')]).then(function () { document.body.appendChild(makeCard()); });
+    }
     document.body.dataset.test = 'gates=' + passed + ' score=' + score + ' stage=' + (D.stage + 1) + ' state=' + state;
     showScore(false);
   }
